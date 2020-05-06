@@ -100,11 +100,11 @@ impl FixMessage {
         }
     }
 
-    pub fn from_raw(fix_message: &str) -> FixMessage {
-        // TODO: trim in advance // should start with 8=
+    pub fn from_raw(fix_message: &str) -> Option<FixMessage> {
         let fix_field_separator: char = 0x01_u8.into();
         let mut message = FixMessage::new();
-        for tag_value in fix_message.split(fix_field_separator) {
+        let start_offset = fix_message.find("8=")?;
+        for tag_value in fix_message[start_offset..].split(fix_field_separator) {
             let tag_value: Vec<&str> = tag_value.split('=').collect();
             if tag_value.len() > 1 {
                 message.add_tag_value(
@@ -113,7 +113,7 @@ impl FixMessage {
                 );
             }
         }
-        message
+        Some(message)
     }
 
     fn merge_fields_into_group(&mut self, tag: i32) {
