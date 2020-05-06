@@ -117,7 +117,7 @@ impl FixMessage {
     }
 
     fn merge_fields_into_group(&mut self, tag: i32) {
-        println!("");
+        println!();
         println!("INFO: Group detected");
 
         let index_first_delimiter = self.get_index_first_delimiter(tag);
@@ -166,7 +166,7 @@ impl FixMessage {
         }
 
         if self.parsing_group() && !self.tag_in_group(tag) {
-            println!("");
+            println!();
             println!("INFO: Stop parsing group");
             let group = self.active_groups.pop().unwrap().group;
             self.get_parent().0.push(group);
