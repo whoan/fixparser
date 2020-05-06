@@ -101,10 +101,14 @@ impl FixMessage {
     }
 
     pub fn from_raw(fix_message: &str) -> Option<FixMessage> {
-        let fix_field_separator: char = 0x01_u8.into();
         let mut message = FixMessage::new();
         let start_offset = fix_message.find("8=")?;
-        for tag_value in fix_message[start_offset..].split(fix_field_separator) {
+        let field_separator = Self::guess_separator(&fix_message[start_offset..]);
+        println!("separator [{}]", field_separator);
+        if field_separator == "" {
+            return None
+        }
+        for tag_value in fix_message[start_offset..].split(&field_separator) {
             let tag_value: Vec<&str> = tag_value.split('=').collect();
             if tag_value.len() > 1 {
                 message.add_tag_value(
@@ -114,6 +118,21 @@ impl FixMessage {
             }
         }
         Some(message)
+    }
+
+    fn guess_separator(fix_msg: &str) -> String {
+        let mut index_start: usize = 9; // len(8=FIX.N.M)
+        if fix_msg.chars().nth(index_start).unwrap() == '.' {
+            index_start += 4; // len(.SPX)
+        }
+        let mut index_end = index_start;
+        for it in fix_msg[index_start..].chars() {
+            if it.is_digit(10) {
+                break;
+            }
+            index_end += 1;
+        }
+        fix_msg[index_start..index_end].to_string()
     }
 
     fn merge_fields_into_group(&mut self, tag: i32) {
