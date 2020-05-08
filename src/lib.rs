@@ -103,7 +103,7 @@ impl FixMessage {
     pub fn from_raw(fix_message: &str) -> Option<FixMessage> {
         let mut message = FixMessage::new();
         let start_offset = fix_message.find("8=")?;
-        let field_separator = Self::guess_separator(&fix_message[start_offset..]);
+        let field_separator = Self::get_separator(&fix_message[start_offset..]);
         println!("separator [{}]", field_separator);
         if field_separator == "" {
             return None
@@ -120,7 +120,7 @@ impl FixMessage {
         Some(message)
     }
 
-    fn guess_separator(fix_msg: &str) -> String {
+    fn get_separator(fix_msg: &str) -> String {
         let mut index_start: usize = 9; // len(8=FIX.N.M)
         if fix_msg.chars().nth(index_start).unwrap() == '.' {
             index_start += 4; // len(.SPX)
