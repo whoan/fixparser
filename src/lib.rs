@@ -105,17 +105,32 @@ impl FixMessage {
         let start_offset = fix_message.find("8=")?;
         let field_separator = Self::get_separator(&fix_message[start_offset..]);
         println!("separator [{}]", field_separator);
+
         if field_separator == "" {
             return None
         }
+
+        let mut end_of_message_found = false;
         for tag_value in fix_message[start_offset..].split(&field_separator) {
+
+            if end_of_message_found {
+                println!("Already processed tag 10. Not processing since: {}", tag_value);
+                break;
+            }
+
             let tag_value: Vec<&str> = tag_value.split('=').collect();
             if tag_value.len() > 1 {
+                let tag = tag_value[0].parse().unwrap_or(0);
                 message.add_tag_value(
-                    tag_value[0].parse().unwrap_or(0),
+                    tag,
                     String::from(tag_value[1]),
                 );
+                end_of_message_found = tag == 10;
             }
+        }
+
+        if !end_of_message_found {
+            println!("Message processed but incomplete");
         }
         Some(message)
     }
