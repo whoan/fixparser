@@ -4,7 +4,15 @@ use serde::{
 use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone)]
-pub struct FixComponent(Vec<FixEntity>);
+pub struct FixComponent {
+    entities: Vec<FixEntity>,
+}
+
+impl FixComponent {
+    fn new(entities: Vec<FixEntity>) -> Self {
+        Self { entities }
+    }
+}
 
 #[derive(Debug, Clone)]
 enum FixEntity {
@@ -17,8 +25,8 @@ impl Serialize for FixComponent {
     where
         S: Serializer,
     {
-        let mut map = serializer.serialize_map(Some(self.0.len()))?;
-        for entity in &self.0 {
+        let mut map = serializer.serialize_map(Some(self.entities.len()))?;
+        for entity in &self.entities {
             match entity {
                 FixEntity::Field(ref a, ref b) => {
                     map.serialize_entry(a, b)?;
@@ -65,12 +73,12 @@ struct ActiveGroup {
 
 impl ActiveGroup {
     pub fn new(delimiter: i32, index_first_delimiter: usize, component: &mut FixComponent) -> Self {
-        let group_instance = FixComponent(component.0.drain(index_first_delimiter..).collect());
-        let known_tags = group_instance.0.iter().map(|fix_entity| FixEntity::get_field_key(fix_entity)).collect();
-        let repetitions: i32 = get(FixEntity::get_field_value(&component.0.last().unwrap()));
+        let group_instance = FixComponent::new(component.entities.drain(index_first_delimiter..).collect());
+        let known_tags = group_instance.entities.iter().map(|fix_entity| FixEntity::get_field_key(fix_entity)).collect();
+        let repetitions: i32 = get(FixEntity::get_field_value(&component.entities.last().unwrap()));
         // bad variable name, as in FIX
-        let no_tag = FixEntity::get_field_key(&component.0.last().unwrap());
-        component.0.pop();
+        let no_tag = FixEntity::get_field_key(&component.entities.last().unwrap());
+        component.entities.pop();
         Self {
             delimiter,
             repetitions,
@@ -95,7 +103,7 @@ impl FixMessage {
     fn new() -> Self {
         Self {
             candidate_indices: HashMap::new(),
-            root_component: FixComponent(Vec::new()),
+            root_component: FixComponent::new(Vec::new()),
             active_groups: Vec::new(),
         }
     }
@@ -203,7 +211,7 @@ impl FixMessage {
             println!();
             println!("INFO: Stop parsing group");
             let group = self.active_groups.pop().unwrap().group;
-            self.get_parent().0.push(group);
+            self.get_parent().entities.push(group);
         }
 
         if self.parsing_group() && self.tag_in_group(tag) {
@@ -216,10 +224,10 @@ impl FixMessage {
             let mut index = 0;
             if let FixEntity::Group(ref _dummy, ref mut group) = &mut self.current_group_instance() {
                 if new_iteration {
-                    group.push(FixComponent(Vec::new()));
+                    group.push(FixComponent::new(Vec::new()));
                 }
-                group.last_mut().unwrap().0.push(FixEntity::Field(tag, value));
-                index = group.last_mut().unwrap().0.len()-1;
+                group.last_mut().unwrap().entities.push(FixEntity::Field(tag, value));
+                index = group.last_mut().unwrap().entities.len()-1;
             }
             if new_iteration {
                 self.clear_candidates();
@@ -228,8 +236,8 @@ impl FixMessage {
             }
             return;
         }
-        self.root_component.0.push(FixEntity::Field(tag, value));
-        self.register_candidate(tag, self.root_component.0.len()-1);
+        self.root_component.entities.push(FixEntity::Field(tag, value));
+        self.register_candidate(tag, self.root_component.entities.len()-1);
     }
 
     fn current_group_instance(&mut self) -> &mut FixEntity {
