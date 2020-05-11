@@ -4,6 +4,29 @@ use serde::{
 use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone)]
+enum FixEntity {
+    Field(i32, String),
+    Group(i32, Vec<FixComponent>),
+}
+
+impl FixEntity {
+    fn get_field_value<'a>(fix_entity: &'a FixEntity) -> &'a str {
+        if let FixEntity::Field(_dummy, repetitions) = fix_entity {
+            println!("Repetitions {} - {}", _dummy, repetitions);
+            return repetitions
+        }
+        panic!("ill-formated FIX");
+    }
+
+    fn get_field_key(fix_entity: &FixEntity) -> i32 {
+        match fix_entity {
+            FixEntity::Field(key, _dummy) => return *key,
+            FixEntity::Group(key, _dummy) => return *key,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct FixComponent {
     entities: Vec<FixEntity>,
 }
@@ -12,12 +35,6 @@ impl FixComponent {
     fn new(entities: Vec<FixEntity>) -> Self {
         Self { entities }
     }
-}
-
-#[derive(Debug, Clone)]
-enum FixEntity {
-    Field(i32, String),
-    Group(i32, Vec<FixComponent>),
 }
 
 impl Serialize for FixComponent {
@@ -37,23 +54,6 @@ impl Serialize for FixComponent {
             }
         }
         map.end()
-    }
-}
-
-impl FixEntity {
-    fn get_field_value<'a>(fix_entity: &'a FixEntity) -> &'a str {
-        if let FixEntity::Field(_dummy, repetitions) = fix_entity {
-            println!("Repetitions {} - {}", _dummy, repetitions);
-            return repetitions
-        }
-        panic!("ill-formated FIX");
-    }
-
-    fn get_field_key(fix_entity: &FixEntity) -> i32 {
-        match fix_entity {
-            FixEntity::Field(key, _dummy) => return *key,
-            FixEntity::Group(key, _dummy) => return *key,
-        }
     }
 }
 
