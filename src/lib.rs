@@ -10,7 +10,7 @@ enum FixEntity {
 }
 
 impl FixEntity {
-    fn get_field_value<'a>(fix_entity: &'a FixEntity) -> &'a str {
+    fn get_field_value(fix_entity: &FixEntity) -> &str {
         if let FixEntity::Field(_dummy, repetitions) = fix_entity {
             println!("Repetitions {} - {}", _dummy, repetitions);
             return repetitions
@@ -20,8 +20,8 @@ impl FixEntity {
 
     fn get_field_key(fix_entity: &FixEntity) -> i32 {
         match fix_entity {
-            FixEntity::Field(key, _dummy) => return *key,
-            FixEntity::Group(key, _dummy) => return *key,
+            FixEntity::Field(key, _dummy) => *key,
+            FixEntity::Group(key, _dummy) => *key,
         }
     }
 }
@@ -257,7 +257,7 @@ impl FixMessage {
     }
 
     fn parsing_group(&self) -> bool {
-        self.active_groups.len() > 0
+        !self.active_groups.is_empty()
     }
 
     fn active_group(&self) -> &ActiveGroup {
