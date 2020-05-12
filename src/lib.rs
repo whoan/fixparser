@@ -1,6 +1,4 @@
-use serde::{
-    Serialize, Serializer, ser::{SerializeMap}
-};
+use serde::{ser::SerializeMap, Serialize, Serializer};
 use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone)]
@@ -13,7 +11,7 @@ impl FixEntity {
     fn get_field_value(fix_entity: &FixEntity) -> &str {
         if let FixEntity::Field(_dummy, repetitions) = fix_entity {
             println!("Repetitions {} - {}", _dummy, repetitions);
-            return repetitions
+            return repetitions;
         }
         panic!("ill-formated FIX");
     }
@@ -50,7 +48,7 @@ impl Serialize for FixComponent {
                 }
                 FixEntity::Group(ref a, ref b) => {
                     map.serialize_entry(a, b)?;
-                },
+                }
             }
         }
         map.end()
@@ -58,7 +56,10 @@ impl Serialize for FixComponent {
 }
 
 // is that useful?
-fn get<T: std::str::FromStr>(input: &str) -> T where <T as std::str::FromStr>::Err: std::fmt::Debug  {
+fn get<T: std::str::FromStr>(input: &str) -> T
+where
+    <T as std::str::FromStr>::Err: std::fmt::Debug,
+{
     input.parse().unwrap()
 }
 
@@ -73,9 +74,16 @@ struct ActiveGroup {
 
 impl ActiveGroup {
     pub fn new(delimiter: i32, index_first_delimiter: usize, component: &mut FixComponent) -> Self {
-        let group_instance = FixComponent::new(component.entities.drain(index_first_delimiter..).collect());
-        let known_tags = group_instance.entities.iter().map(|fix_entity| FixEntity::get_field_key(fix_entity)).collect();
-        let repetitions: i32 = get(FixEntity::get_field_value(&component.entities.last().unwrap()));
+        let group_instance =
+            FixComponent::new(component.entities.drain(index_first_delimiter..).collect());
+        let known_tags = group_instance
+            .entities
+            .iter()
+            .map(|fix_entity| FixEntity::get_field_key(fix_entity))
+            .collect();
+        let repetitions: i32 = get(FixEntity::get_field_value(
+            &component.entities.last().unwrap(),
+        ));
         // bad variable name, as in FIX
         let no_tag = FixEntity::get_field_key(&component.entities.last().unwrap());
         component.entities.pop();
@@ -115,24 +123,23 @@ impl FixMessage {
         println!("separator [{}]", field_separator);
 
         if field_separator == "" {
-            return None
+            return None;
         }
 
         let mut end_of_message_found = false;
         for tag_value in fix_message[start_offset..].split(&field_separator) {
-
             if end_of_message_found {
-                println!("Already processed tag 10. Not processing since: {}", tag_value);
+                println!(
+                    "Already processed tag 10. Not processing since: {}",
+                    tag_value
+                );
                 break;
             }
 
             let tag_value: Vec<&str> = tag_value.split('=').collect();
             if tag_value.len() > 1 {
                 let tag = tag_value[0].parse().unwrap_or(0);
-                message.add_tag_value(
-                    tag,
-                    String::from(tag_value[1]),
-                );
+                message.add_tag_value(tag, String::from(tag_value[1]));
                 end_of_message_found = tag == 10;
             }
         }
@@ -166,12 +173,18 @@ impl FixMessage {
         //println!("Index first delimiter {}", index_first_delimiter);
         if self.parsing_group() {
             let group = match self.current_group_instance() {
-                FixEntity::Group(ref _dummy, group) => ActiveGroup::new(tag, index_first_delimiter, &mut group.last_mut().unwrap()),
-                _ => panic!("a group was expected")
+                FixEntity::Group(ref _dummy, group) => {
+                    ActiveGroup::new(tag, index_first_delimiter, &mut group.last_mut().unwrap())
+                }
+                _ => panic!("a group was expected"),
             };
             self.active_groups.push(group);
         } else {
-            self.active_groups.push(ActiveGroup::new(tag, index_first_delimiter, &mut self.root_component));
+            self.active_groups.push(ActiveGroup::new(
+                tag,
+                index_first_delimiter,
+                &mut self.root_component,
+            ));
         }
     }
 
@@ -222,12 +235,17 @@ impl FixMessage {
                 self.active_group_mut().current_iteration += 1;
             }
             let mut index = 0;
-            if let FixEntity::Group(ref _dummy, ref mut group) = &mut self.current_group_instance() {
+            if let FixEntity::Group(ref _dummy, ref mut group) = &mut self.current_group_instance()
+            {
                 if new_iteration {
                     group.push(FixComponent::new(Vec::new()));
                 }
-                group.last_mut().unwrap().entities.push(FixEntity::Field(tag, value));
-                index = group.last_mut().unwrap().entities.len()-1;
+                group
+                    .last_mut()
+                    .unwrap()
+                    .entities
+                    .push(FixEntity::Field(tag, value));
+                index = group.last_mut().unwrap().entities.len() - 1;
             }
             if new_iteration {
                 self.clear_candidates();
@@ -236,8 +254,10 @@ impl FixMessage {
             }
             return;
         }
-        self.root_component.entities.push(FixEntity::Field(tag, value));
-        self.register_candidate(tag, self.root_component.entities.len()-1);
+        self.root_component
+            .entities
+            .push(FixEntity::Field(tag, value));
+        self.register_candidate(tag, self.root_component.entities.len() - 1);
     }
 
     fn current_group_instance(&mut self) -> &mut FixEntity {
@@ -246,7 +266,8 @@ impl FixMessage {
 
     fn get_parent(&mut self) -> &mut FixComponent {
         if self.parsing_group() {
-            if let FixEntity::Group(ref _dummy, ref mut group) = &mut self.active_group_mut().group {
+            if let FixEntity::Group(ref _dummy, ref mut group) = &mut self.active_group_mut().group
+            {
                 group.last_mut().unwrap()
             } else {
                 panic!("should be inside a group");
