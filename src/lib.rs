@@ -164,10 +164,13 @@ impl FixMessage {
                 );
                 break;
             }
-            message.add_tag_value(tag_value.0, String::from(tag_value.1));
+            let tag = tag_value.0;
+            message.add_tag_value(tag, String::from(tag_value.1));
+            println!("{}Index {} - Added {} - {}", message.get_spaces(), message.current_index, tag, tag_value.1);
             message.current_index += 1;
             end_of_message_found = tag_value.0 == 10;
         }
+        println!();
 
         if !end_of_message_found {
             println!("Message processed but incomplete");
@@ -229,7 +232,7 @@ impl FixMessage {
     }
 
     fn clear_candidates(&mut self) {
-        println!("Clearing");
+        //println!("Clearing");
         self.get_candidates().clear();
     }
 
@@ -249,8 +252,6 @@ impl FixMessage {
     }
 
     fn add_tag_value(&mut self, tag: i32, value: String) {
-        println!("{}Index {} - Adding {} - {}", self.get_spaces(), self.current_index, tag, value);
-
         self.remove_pending_tag(tag);
 
         while self.parsing_group() && !self.tag_in_group(tag) {
@@ -290,6 +291,7 @@ impl FixMessage {
         }
         if new_iteration {
             self.clear_candidates();
+            println!("{}-- repetition {} --", self.get_spaces(), self.active_group().current_iteration);
         } else {
             self.register_candidate(tag, index);
         }
@@ -341,15 +343,15 @@ impl FixMessage {
     fn pending_tag_in_last_instance(&mut self) -> bool {
         let mut clean: Vec<i32> = Vec::new();
         for known_tag in self.active_group().known_tags.iter() {
-            print!("{}known_tag {} - current_index {}", self.get_spaces(), known_tag, self.current_index);
+            //print!("{}known_tag {} - current_index {}", self.get_spaces(), known_tag, self.current_index);
             if let Some(known_tag_index) = self.pending_indices.get(known_tag).unwrap().back() {
-                print!(" - known_tag_index {:?}", known_tag_index);
+                //print!(" - known_tag_index {:?}", known_tag_index);
                 if self.index_belongs_to_current_group(*known_tag_index) {
-                    println!(" -> Pending");
+                    //println!(" -> Pending");
                     break;
                 }
             }
-            println!(" -> Clean");
+            //println!(" -> Clean");
             clean.push(*known_tag);
         }
         // optimization (can I remove elements from known_tags somwehere else?)
@@ -362,7 +364,7 @@ impl FixMessage {
     fn index_belongs_to_current_group(&self, index: usize) -> bool {
         let &tag_indices = &self.pending_indices.get(&self.active_group().delimiter).unwrap();
         if let Some(delimiter_index) = tag_indices.back() {
-            print!(" - delimiter ({}) index {}", self.active_group().delimiter, delimiter_index);
+            //print!(" - delimiter ({}) index {}", self.active_group().delimiter, delimiter_index);
             return index < *delimiter_index
         }
         true
