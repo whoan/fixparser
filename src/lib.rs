@@ -10,7 +10,8 @@ enum FixEntity {
 impl FixEntity {
     fn get_field_value(fix_entity: &FixEntity) -> &str {
         if let FixEntity::Field(_dummy, repetitions) = fix_entity {
-            println!("Repetitions {} - {}", _dummy, repetitions);
+            println!(". Repetitions {} - {}", _dummy, repetitions);
+            println!();
             return repetitions;
         }
         panic!("ill-formated FIX");
@@ -190,8 +191,7 @@ impl FixMessage {
     }
 
     fn open_group(&mut self, tag: i32) {
-        println!();
-        println!("INFO: Group detected");
+        print!("{}INFO: Group detected", self.get_spaces());
         // merge fields into group
         let index_first_delimiter = self.get_index_first_delimiter(tag);
         //println!("Index first delimiter {}", index_first_delimiter);
@@ -242,14 +242,14 @@ impl FixMessage {
     }
 
     fn close_group(&mut self) {
-        println!("INFO: Stop parsing group");
+        println!("{}INFO: Stop parsing group", self.get_spaces());
         println!();
         let group = self.active_groups.pop().unwrap().group;
         self.get_parent().entities.push(group);
     }
 
     fn add_tag_value(&mut self, tag: i32, value: String) {
-        println!("Adding {} - {}", tag, value);
+        println!("{}Index {} - Adding {} - {}", self.get_spaces(), self.current_index, tag, value);
 
         self.remove_pending_tag(tag);
 
@@ -293,6 +293,12 @@ impl FixMessage {
         } else {
             self.register_candidate(tag, index);
         }
+    }
+
+    fn get_spaces(&self) -> String {
+        let mut spaces: Vec<char> = Vec::new();
+        spaces.resize(self.active_groups.len() * 2, ' ');
+        spaces.iter().collect()
     }
 
     fn current_group_instance(&mut self) -> &mut FixEntity {
