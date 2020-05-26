@@ -143,8 +143,11 @@ impl FixMessage {
                 let tag = tag_value[0].parse().unwrap_or(0);
                 let value = tag_value[1];
                 tag_values.push(TagValue(tag, value));
-                let tag_indices = message.pending_indices.entry(tag).or_insert(VecDeque::new());
-                tag_indices.push_back(index);
+                message
+                    .pending_indices
+                    .entry(tag)
+                    .or_insert(VecDeque::new())
+                    .push_back(index);
                 index += 1;
             }
         }
@@ -257,37 +260,38 @@ impl FixMessage {
             self.open_group(tag);
         }
 
-        if self.parsing_group() {
-            self.set_known_tag_in_group(tag);
-            let new_iteration = tag == self.active_group().delimiter;
-            //println!("INFO: In group tag {} - delimiter {}", tag, self.active_group().delimiter);
-            if new_iteration {
-                self.active_group_mut().current_iteration += 1;
-            }
-            let mut index = 0;
-            if let FixEntity::Group(ref _dummy, ref mut group) = &mut self.current_group_instance()
-            {
-                if new_iteration {
-                    group.push(FixComponent::new(Vec::new()));
-                }
-                group
-                    .last_mut()
-                    .unwrap()
-                    .entities
-                    .push(FixEntity::Field(tag, value));
-                index = group.last_mut().unwrap().entities.len() - 1;
-            }
-            if new_iteration {
-                self.clear_candidates();
-            } else {
-                self.register_candidate(tag, index);
-            }
+        if !self.parsing_group() {
+            self.root_component
+                .entities
+                .push(FixEntity::Field(tag, value));
+            self.register_candidate(tag, self.root_component.entities.len() - 1);
             return;
         }
-        self.root_component
-            .entities
-            .push(FixEntity::Field(tag, value));
-        self.register_candidate(tag, self.root_component.entities.len() - 1);
+
+        self.set_known_tag_in_group(tag);
+        let new_iteration = tag == self.active_group().delimiter;
+        //println!("INFO: In group tag {} - delimiter {}", tag, self.active_group().delimiter);
+        if new_iteration {
+            self.active_group_mut().current_iteration += 1;
+        }
+        let mut index = 0;
+        if let FixEntity::Group(ref _dummy, ref mut group) = &mut self.current_group_instance()
+        {
+            if new_iteration {
+                group.push(FixComponent::new(Vec::new()));
+            }
+            group
+                .last_mut()
+                .unwrap()
+                .entities
+                .push(FixEntity::Field(tag, value));
+            index = group.last_mut().unwrap().entities.len() - 1;
+        }
+        if new_iteration {
+            self.clear_candidates();
+        } else {
+            self.register_candidate(tag, index);
+        }
     }
 
     fn current_group_instance(&mut self) -> &mut FixEntity {
