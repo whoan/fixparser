@@ -338,23 +338,31 @@ impl FixMessage {
         !self.last_iteration() || self.known_group_tag(tag) || self.pending_tag_in_last_instance()
     }
 
-        // while pop?
     fn pending_tag_in_last_instance(&mut self) -> bool {
+        let mut clean: Vec<i32> = Vec::new();
         for known_tag in self.active_group().known_tags.iter() {
-            let &tag_indices = &self.pending_indices.get(known_tag).unwrap();
-            if let Some(known_tag_index) = tag_indices.back() {
-                println!("known_tag {} - current_index {} - known_tag_index {:?}", known_tag, self.current_index, known_tag_index);
+            print!("{}known_tag {} - current_index {}", self.get_spaces(), known_tag, self.current_index);
+            if let Some(known_tag_index) = self.pending_indices.get(known_tag).unwrap().back() {
+                print!(" - known_tag_index {:?}", known_tag_index);
                 if self.index_belongs_to_current_group(*known_tag_index) {
-                    return true
+                    println!(" -> Pending");
+                    break;
                 }
             }
+            println!(" -> Clean");
+            clean.push(*known_tag);
         }
-        false
+        // optimization (can I remove elements from known_tags somwehere else?)
+        for to_clean in clean {
+            self.active_group_mut().known_tags.remove(&to_clean);
+        }
+        !self.active_group().known_tags.is_empty()
     }
 
     fn index_belongs_to_current_group(&self, index: usize) -> bool {
         let &tag_indices = &self.pending_indices.get(&self.active_group().delimiter).unwrap();
         if let Some(delimiter_index) = tag_indices.back() {
+            print!(" - delimiter ({}) index {}", self.active_group().delimiter, delimiter_index);
             return index < *delimiter_index
         }
         true
