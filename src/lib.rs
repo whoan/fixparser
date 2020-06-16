@@ -1,29 +1,29 @@
 use serde::{ser::SerializeMap, Serialize, Serializer};
 use std::collections::{HashMap, HashSet, VecDeque};
 
+
 #[derive(Debug, Clone)]
 enum FixEntity {
     Field(i32, String),
-    Group(i32, Vec<FixComponent>),
+    Group(FixGroup),
 }
 
 impl FixEntity {
-    fn get_field_value(fix_entity: &FixEntity) -> &str {
-        if let FixEntity::Field(_dummy, repetitions) = fix_entity {
-            println!(". Repetitions {} - {}", _dummy, repetitions);
-            println!();
-            return repetitions;
+    fn get_tag(&self) -> i32 {
+        match self {
+            FixEntity::Field(tag, _dummy) => *tag,
+            FixEntity::Group(group) => group.no_tag,
+        }
+    }
+
+    fn get_value_i32(&self) -> i32 {
+        if let FixEntity::Field(_dummy, value) = self {
+            return value.parse().unwrap();
         }
         panic!("ill-formated FIX");
     }
-
-    fn get_field_key(fix_entity: &FixEntity) -> i32 {
-        match fix_entity {
-            FixEntity::Field(key, _dummy) => *key,
-            FixEntity::Group(key, _dummy) => *key,
-        }
-    }
 }
+
 
 #[derive(Debug, Clone)]
 pub struct FixComponent {
@@ -44,11 +44,11 @@ impl Serialize for FixComponent {
         let mut map = serializer.serialize_map(Some(self.entities.len()))?;
         for entity in &self.entities {
             match entity {
-                FixEntity::Field(ref a, ref b) => {
-                    map.serialize_entry(a, b)?;
+                FixEntity::Field(ref tag, ref value) => {
+                    map.serialize_entry(tag, value)?;
                 }
-                FixEntity::Group(ref a, ref b) => {
-                    map.serialize_entry(a, b)?;
+                FixEntity::Group(ref group) => {
+                    map.serialize_entry(&group.no_tag, &group.instances)?;
                 }
             }
         }
@@ -56,43 +56,51 @@ impl Serialize for FixComponent {
     }
 }
 
-// is that useful?
-fn get<T: std::str::FromStr>(input: &str) -> T
-where
-    <T as std::str::FromStr>::Err: std::fmt::Debug,
-{
-    input.parse().unwrap()
-}
 
-struct ActiveGroup {
+#[derive(Debug, Clone)]
+struct FixGroup {
     delimiter: i32,
+    no_tag: i32,
     repetitions: i32,
     current_iteration: i32,
-    group: FixEntity,
+    instances: Vec<FixComponent>,
     known_tags: HashSet<i32>, // tags we know that belong to this group
-    candidate_indices: HashMap<i32, usize>, // store pending_indices of candidate nested group
+    candidate_indices: HashMap<i32, usize>, // store indices of tags in potential nested group <- ?
 }
 
-impl ActiveGroup {
+impl FixGroup {
     pub fn new(delimiter: i32, index_first_delimiter: usize, component: &mut FixComponent) -> Self {
         let group_instance =
             FixComponent::new(component.entities.drain(index_first_delimiter..).collect());
-        let known_tags = group_instance
+        let mut known_tags: HashSet<i32> = group_instance
             .entities
             .iter()
-            .map(|fix_entity| FixEntity::get_field_key(fix_entity))
+            .map(|fix_entity| fix_entity.get_tag())
             .collect();
-        let repetitions: i32 = get(FixEntity::get_field_value(
-            &component.entities.last().unwrap()
-        ));
-        // bad variable name, as in FIX
-        let no_tag = FixEntity::get_field_key(&component.entities.last().unwrap());
-        component.entities.pop();
+
+        // can I improve this?
+        // We need to register as known tags the ones inside a nested repeating group
+        for entity in &group_instance.entities {
+            if let FixEntity::Group(group) = entity {
+                for instance in &group.instances {
+                    for entity in &instance.entities {
+                        known_tags.insert(entity.get_tag());
+                    }
+                }
+            }
+        }
+
+        let group = component.entities.pop().unwrap();
+        let no_tag = group.get_tag();  // bad variable name, as in FIX
+        let repetitions = group.get_value_i32();
+        println!(". Repetitions {}\n", repetitions);
+
         Self {
+            no_tag,
             delimiter,
             repetitions,
             current_iteration: 1,
-            group: FixEntity::Group(no_tag, vec![group_instance]),
+            instances: vec![group_instance],
             known_tags,
             candidate_indices: HashMap::new(),
         }
@@ -103,14 +111,15 @@ impl ActiveGroup {
     }
 }
 
+
 #[derive(Debug)]
 struct TagValue<'a>(i32, &'a str);
 
 pub struct FixMessage {
-    pending_indices: HashMap<i32, VecDeque<usize>>,
+    pending_tag_indices: HashMap<i32, VecDeque<usize>>,
     candidate_indices: HashMap<i32, usize>,
     pub root_component: FixComponent,
-    active_groups: Vec<ActiveGroup>, // in case an instance but the first, have a nested repeating group.
+    active_groups: Vec<FixGroup>,
     current_index: usize, // for debugging
     // A, B, no_C=3, C1, C2, C1, no_D=2, D1, D2, D1, D2, C2, C1, C2
     //        ^                   ^
@@ -120,7 +129,7 @@ pub struct FixMessage {
 impl FixMessage {
     fn new() -> Self {
         Self {
-            pending_indices: HashMap::new(),
+            pending_tag_indices: HashMap::new(),
             candidate_indices: HashMap::new(),
             root_component: FixComponent::new(Vec::new()),
             active_groups: Vec::new(),
@@ -146,7 +155,7 @@ impl FixMessage {
                 let value = tag_value[1];
                 tag_values.push(TagValue(tag, value));
                 message
-                    .pending_indices
+                    .pending_tag_indices
                     .entry(tag)
                     .or_insert(VecDeque::new())
                     .push_back(message.current_index);
@@ -193,26 +202,14 @@ impl FixMessage {
         fix_msg[index_start..index_end].to_string()
     }
 
-    fn open_group(&mut self, tag: i32) {
+    fn open_group(&mut self, group_delimiter: i32) {
         print!("{}INFO: Group detected", self.get_spaces());
-        // merge fields into group
-        let index_first_delimiter = self.get_index_first_delimiter(tag);
-        //println!("Index first delimiter {}", index_first_delimiter);
-        if self.parsing_group() {
-            let group = match self.current_group_instance() {
-                FixEntity::Group(ref _dummy, group) => {
-                    ActiveGroup::new(tag, index_first_delimiter, &mut group.last_mut().unwrap())
-                }
-                _ => panic!("a group was expected"),
-            };
-            self.active_groups.push(group);
-        } else {
-            self.active_groups.push(ActiveGroup::new(
-                tag,
-                index_first_delimiter,
-                &mut self.root_component,
-            ));
-        }
+        let group = FixGroup::new(
+            group_delimiter,
+            self.get_index_group_delimiter(group_delimiter),
+            self.get_component(),
+        );
+        self.active_groups.push(group);
     }
 
     fn get_candidates(&mut self) -> &mut HashMap<i32, usize> {
@@ -223,7 +220,7 @@ impl FixMessage {
         }
     }
 
-    fn get_index_first_delimiter(&mut self, tag: i32) -> usize {
+    fn get_index_group_delimiter(&mut self, tag: i32) -> usize {
         *self.get_candidates().get(&tag).unwrap()
     }
 
@@ -232,7 +229,6 @@ impl FixMessage {
     }
 
     fn clear_candidates(&mut self) {
-        //println!("Clearing");
         self.get_candidates().clear();
     }
 
@@ -241,14 +237,13 @@ impl FixMessage {
     }
 
     fn remove_pending_tag(&mut self, tag: i32) {
-        self.pending_indices.get_mut(&tag).unwrap().pop_front();
+        self.pending_tag_indices.get_mut(&tag).unwrap().pop_front();
     }
 
     fn close_group(&mut self) {
-        println!("{}INFO: Stop parsing group", self.get_spaces());
-        println!();
-        let group = self.active_groups.pop().unwrap().group;
-        self.get_parent().entities.push(group);
+        println!("{}INFO: Stop parsing group\n", self.get_spaces());
+        let closed_group = self.active_groups.pop().unwrap();
+        self.get_component().entities.push(FixEntity::Group(closed_group));
     }
 
     fn add_tag_value(&mut self, tag: i32, value: String) {
@@ -272,23 +267,24 @@ impl FixMessage {
 
         self.set_known_tag_in_group(tag);
         let new_iteration = tag == self.active_group().delimiter;
-        //println!("INFO: In group tag {} - delimiter {}", tag, self.active_group().delimiter);
         if new_iteration {
             self.active_group_mut().current_iteration += 1;
         }
-        let mut index = 0;
-        if let FixEntity::Group(ref _dummy, ref mut group) = &mut self.current_group_instance()
-        {
-            if new_iteration {
-                group.push(FixComponent::new(Vec::new()));
-            }
+
+        let group = &mut self.active_group_mut();
+        if new_iteration {
             group
-                .last_mut()
-                .unwrap()
-                .entities
-                .push(FixEntity::Field(tag, value));
-            index = group.last_mut().unwrap().entities.len() - 1;
+                .instances
+                .push(FixComponent::new(Vec::new()));
         }
+        group
+            .instances
+            .last_mut()
+            .unwrap()
+            .entities
+            .push(FixEntity::Field(tag, value));
+        let index = group.instances.last_mut().unwrap().entities.len() - 1;
+
         if new_iteration {
             self.clear_candidates();
             println!("{}-- repetition {} --", self.get_spaces(), self.active_group().current_iteration);
@@ -303,22 +299,13 @@ impl FixMessage {
         spaces.iter().collect()
     }
 
-    fn current_group_instance(&mut self) -> &mut FixEntity {
-        &mut self.active_group_mut().group
-    }
-
     fn set_known_tag_in_group(&mut self, tag: i32) {
         self.active_group_mut().insert_known_tag(tag);
     }
 
-    fn get_parent(&mut self) -> &mut FixComponent {
+    fn get_component(&mut self) -> &mut FixComponent {
         if self.parsing_group() {
-            if let FixEntity::Group(ref _dummy, ref mut group) = &mut self.active_group_mut().group
-            {
-                group.last_mut().unwrap()
-            } else {
-                panic!("should be inside a group");
-            }
+            self.active_group_mut().instances.last_mut().unwrap()
         } else {
             &mut self.root_component
         }
@@ -328,46 +315,46 @@ impl FixMessage {
         !self.active_groups.is_empty()
     }
 
-    fn active_group(&self) -> &ActiveGroup {
+    fn active_group(&self) -> &FixGroup {
         self.active_groups.last().unwrap()
     }
 
-    fn active_group_mut(&mut self) -> &mut ActiveGroup {
+    fn active_group_mut(&mut self) -> &mut FixGroup {
         self.active_groups.last_mut().unwrap()
     }
 
     fn tag_in_group(&mut self, tag: i32) -> bool {
+        // from cheapest to more expensive check
         !self.last_iteration() || self.known_group_tag(tag) || self.pending_tag_in_last_instance()
     }
 
     fn pending_tag_in_last_instance(&mut self) -> bool {
         let mut clean: Vec<i32> = Vec::new();
         for known_tag in self.active_group().known_tags.iter() {
-            //print!("{}known_tag {} - current_index {}", self.get_spaces(), known_tag, self.current_index);
-            if let Some(known_tag_index) = self.pending_indices.get(known_tag).unwrap().back() {
-                //print!(" - known_tag_index {:?}", known_tag_index);
-                if self.index_belongs_to_current_group(*known_tag_index) {
-                    //println!(" -> Pending");
+            if let Some(tag_index) = self.get_next_index_of_tag(*known_tag) {
+                if self.index_belongs_to_current_group(*tag_index) {
                     break;
                 }
             }
-            //println!(" -> Clean");
-            clean.push(*known_tag);
+            clean.push(*known_tag);  // optimization
         }
-        // optimization (can I remove elements from known_tags somwehere else?)
+
         for to_clean in clean {
             self.active_group_mut().known_tags.remove(&to_clean);
         }
+
         !self.active_group().known_tags.is_empty()
     }
 
-    fn index_belongs_to_current_group(&self, index: usize) -> bool {
-        let &tag_indices = &self.pending_indices.get(&self.active_group().delimiter).unwrap();
-        if let Some(delimiter_index) = tag_indices.back() {
-            //print!(" - delimiter ({}) index {}", self.active_group().delimiter, delimiter_index);
-            return index < *delimiter_index
+    fn index_belongs_to_current_group(&self, tag_index: usize) -> bool {
+        if let Some(delimiter_index) = self.get_next_index_of_tag(self.active_group().delimiter) {
+            return tag_index < *delimiter_index
         }
         true
+    }
+
+    fn get_next_index_of_tag(&self, tag: i32) -> Option<&usize> {
+        self.pending_tag_indices.get(&tag).unwrap().front()
     }
 
     fn known_group_tag(&self, tag: i32) -> bool {
