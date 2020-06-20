@@ -208,6 +208,30 @@ impl FixMessage {
         fix_msg[index_start..index_end].to_string()
     }
 
+    fn add_tag_value(&mut self, tag: i32, value: String) {
+        self.remove_pending_tag(tag);
+
+        while self.is_parsing_group() && !self.tag_in_group(tag) {
+            self.close_group();
+        }
+
+        if self.repeated_candidate(tag) {
+            self.open_group(tag);
+        }
+
+        if self.is_parsing_group() {
+            self.set_known_tag_in_group(tag);
+        }
+
+        if self.is_new_iteration(tag) {
+            self.create_new_group_instance();
+        } else {
+            self.register_candidate(tag);
+        }
+
+        self.get_entities().push(FixEntity::Field(tag, value));
+    }
+
     fn open_group(&mut self, group_delimiter: i32) {
         print!("{}INFO: Group detected", self.get_spaces());
         let group = FixGroup::new(
@@ -241,6 +265,10 @@ impl FixMessage {
         self.get_candidates().contains_key(&tag)
     }
 
+    fn get_next_index_of_pending_tag(&self, tag: i32) -> Option<&usize> {
+        self.pending_tag_indices.get(&tag).unwrap().front()
+    }
+
     fn remove_pending_tag(&mut self, tag: i32) {
         self.pending_tag_indices.get_mut(&tag).unwrap().pop_front();
     }
@@ -250,30 +278,6 @@ impl FixMessage {
         let closed_group = self.active_groups.pop().unwrap();
         self.get_component().entities.push(FixEntity::Group(closed_group));
         self.candidate_indices.pop();
-    }
-
-    fn add_tag_value(&mut self, tag: i32, value: String) {
-        self.remove_pending_tag(tag);
-
-        while self.is_parsing_group() && !self.tag_in_group(tag) {
-            self.close_group();
-        }
-
-        if self.repeated_candidate(tag) {
-            self.open_group(tag);
-        }
-
-        if self.is_parsing_group() {
-            self.set_known_tag_in_group(tag);
-        }
-
-        if self.is_new_iteration(tag) {
-            self.create_new_group_instance();
-        } else {
-            self.register_candidate(tag);
-        }
-
-        self.get_entities().push(FixEntity::Field(tag, value));
     }
 
     fn is_new_iteration(&self, tag: i32) -> bool {
@@ -353,10 +357,6 @@ impl FixMessage {
             return tag_index < *delimiter_index
         }
         true
-    }
-
-    fn get_next_index_of_pending_tag(&self, tag: i32) -> Option<&usize> {
-        self.pending_tag_indices.get(&tag).unwrap().front()
     }
 
     fn is_known_group_tag(&self, tag: i32) -> bool {
