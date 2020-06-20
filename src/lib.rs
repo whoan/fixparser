@@ -142,54 +142,58 @@ impl FixMessage {
         }
     }
 
-    pub fn from_raw(fix_message: &str) -> Option<FixMessage> {
+    pub fn from_raw(raw_message: &str) -> Option<FixMessage> {
         let mut message = FixMessage::new();
-        let start_offset = fix_message.find("8=")?;
-        let field_separator = Self::get_separator(&fix_message[start_offset..]);
-        println!("separator [{}]", field_separator);
-
-        if field_separator == "" {
-            return None;
-        }
-
-        let mut tag_values: Vec<TagValue> = Vec::new();
-        for tag_value in fix_message[start_offset..].split(&field_separator) {
-            let tag_value: Vec<&str> = tag_value.split('=').collect();
-            if tag_value.len() > 1 {
-                let tag = tag_value[0].parse().unwrap_or(0);
-                let value = tag_value[1];
-                tag_values.push(TagValue(tag, value));
-                message
-                    .pending_tag_indices
-                    .entry(tag)
-                    .or_insert(VecDeque::new())
-                    .push_back(message.current_index);
-                message.current_index += 1;
-            }
-        }
-
+        let tag_values = message.pre_process_message(&raw_message)?;
         let mut end_of_message_found = false;
+
         message.current_index = 0;
         for tag_value in tag_values.iter() {
             if end_of_message_found {
                 println!(
-                    "Already processed tag 10. Not processing since: {:?}",
+                    "Already processed tag 10. Not processing since: {:?}\n",
                     tag_value
                 );
                 break;
             }
             let tag = tag_value.0;
             message.add_tag_value(tag, String::from(tag_value.1));
-            println!("{}Index {} - Added {} - {}", message.get_spaces(), message.current_index, tag, tag_value.1);
+            println!("{}Index {} - Added {} - {}\n", message.get_spaces(), message.current_index, tag, tag_value.1);
             message.current_index += 1;
             end_of_message_found = tag_value.0 == 10;
         }
-        println!();
 
         if !end_of_message_found {
             println!("Message processed but incomplete");
         }
+
         Some(message)
+    }
+
+    fn pre_process_message<'a>(&mut self, raw_message: &'a str) -> Option<Vec<TagValue<'a>>> {
+        let start_offset = raw_message.find("8=")?;
+        let field_separator = Self::get_separator(&raw_message[start_offset..]);
+
+        if field_separator == "" {
+            return None;
+        }
+
+        let mut tag_values: Vec<TagValue> = Vec::new();
+        for tag_value in raw_message[start_offset..].split(&field_separator) {
+            let tag_value: Vec<&str> = tag_value.split('=').collect();
+            if tag_value.len() > 1 {
+                let tag = tag_value[0].parse().unwrap_or(0);
+                let value = tag_value[1];
+                tag_values.push(TagValue(tag, value));
+                self
+                    .pending_tag_indices
+                    .entry(tag)
+                    .or_insert(VecDeque::new())
+                    .push_back(self.current_index);
+                self.current_index += 1;
+            }
+        }
+        Some(tag_values)
     }
 
     // get FIX values separator: eg: 0x01 or |
@@ -205,7 +209,9 @@ impl FixMessage {
             }
             index_end += 1;
         }
-        fix_msg[index_start..index_end].to_string()
+        let field_separator = fix_msg[index_start..index_end].to_string();
+        println!("separator [{}]", field_separator);
+        field_separator
     }
 
     fn add_tag_value(&mut self, tag: i32, value: String) {
