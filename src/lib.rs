@@ -63,9 +63,8 @@ struct FixGroup {
     no_tag: i32, // tag which contains the number of repetitions
     repetitions: i32,
     current_iteration: i32,
-    instances: Vec<FixComponent>,
     known_tags: HashSet<i32>, // tags we know that belong to this group
-    candidate_indices: HashMap<i32, usize>, // store indices of tags in potential nested group <- ?
+    instances: Vec<FixComponent>,
 }
 
 impl FixGroup {
@@ -100,9 +99,8 @@ impl FixGroup {
             delimiter,
             repetitions,
             current_iteration: 1,
-            instances: vec![group_instance],
             known_tags,
-            candidate_indices: HashMap::new(),
+            instances: vec![group_instance],
         }
     }
 
@@ -121,10 +119,11 @@ struct TagValue<'a>(i32, &'a str);
 
 pub struct FixMessage {
     pending_tag_indices: HashMap<i32, VecDeque<usize>>,
-    candidate_indices: HashMap<i32, usize>,
     pub root_component: FixComponent,
+    candidate_indices: Vec<HashMap<i32, usize>>, // store indices of tags of potential nested group
     active_groups: Vec<FixGroup>,
     current_index: usize, // for debugging
+    // example:
     // A, B, no_C=3, C1, C2, C1, no_D=2, D1, D2, D1, D2, C2, C1, C2
     //        ^                   ^
     //   start group C       start group D (in second instance of group C)
@@ -132,10 +131,12 @@ pub struct FixMessage {
 
 impl FixMessage {
     fn new() -> Self {
+        let mut candidate_indices = Vec::new();
+        candidate_indices.push(HashMap::new());
         Self {
             pending_tag_indices: HashMap::new(),
-            candidate_indices: HashMap::new(),
             root_component: FixComponent::new(Vec::new()),
+            candidate_indices,
             active_groups: Vec::new(),
             current_index: 0,
         }
@@ -211,21 +212,18 @@ impl FixMessage {
         print!("{}INFO: Group detected", self.get_spaces());
         let group = FixGroup::new(
             group_delimiter,
-            self.get_index_group_delimiter(group_delimiter),
+            self.get_index_of_candidate(group_delimiter),
             self.get_component(),
         );
         self.active_groups.push(group);
+        self.candidate_indices.push(HashMap::new());
     }
 
     fn get_candidates(&mut self) -> &mut HashMap<i32, usize> {
-        if self.is_parsing_group() {
-            &mut self.active_group_mut().candidate_indices
-        } else {
-            &mut self.candidate_indices
-        }
+        self.candidate_indices.last_mut().unwrap()
     }
 
-    fn get_index_group_delimiter(&mut self, tag: i32) -> usize {
+    fn get_index_of_candidate(&mut self, tag: i32) -> usize {
         *self.get_candidates().get(&tag).unwrap()
     }
 
@@ -251,6 +249,7 @@ impl FixMessage {
         println!("{}INFO: Stop parsing group\n", self.get_spaces());
         let closed_group = self.active_groups.pop().unwrap();
         self.get_component().entities.push(FixEntity::Group(closed_group));
+        self.candidate_indices.pop();
     }
 
     fn add_tag_value(&mut self, tag: i32, value: String) {
@@ -334,7 +333,7 @@ impl FixMessage {
     fn pending_tag_in_last_instance(&mut self) -> bool {
         let mut clean: Vec<i32> = Vec::new();
         for known_tag in self.active_group().known_tags.iter() {
-            if let Some(tag_index) = self.get_next_index_of_tag(*known_tag) {
+            if let Some(tag_index) = self.get_next_index_of_pending_tag(*known_tag) {
                 if self.index_belongs_to_current_group(*tag_index) {
                     break;
                 }
@@ -350,13 +349,13 @@ impl FixMessage {
     }
 
     fn index_belongs_to_current_group(&self, tag_index: usize) -> bool {
-        if let Some(delimiter_index) = self.get_next_index_of_tag(self.active_group().delimiter) {
+        if let Some(delimiter_index) = self.get_next_index_of_pending_tag(self.active_group().delimiter) {
             return tag_index < *delimiter_index
         }
         true
     }
 
-    fn get_next_index_of_tag(&self, tag: i32) -> Option<&usize> {
+    fn get_next_index_of_pending_tag(&self, tag: i32) -> Option<&usize> {
         self.pending_tag_indices.get(&tag).unwrap().front()
     }
 
