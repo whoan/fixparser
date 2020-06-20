@@ -71,24 +71,7 @@ impl FixGroup {
     pub fn new(delimiter: i32, index_first_delimiter: usize, component: &mut FixComponent) -> Self {
         let group_instance =
             FixComponent::new(component.entities.drain(index_first_delimiter..).collect());
-        let mut known_tags: HashSet<i32> = group_instance
-            .entities
-            .iter()
-            .map(|fix_entity| fix_entity.get_tag())
-            .collect();
-
-        // can I improve this?
-        // We need to register as known tags the ones inside a nested repeating group
-        for entity in &group_instance.entities {
-            if let FixEntity::Group(group) = entity {
-                for instance in &group.instances {
-                    for entity in &instance.entities {
-                        known_tags.insert(entity.get_tag());
-                    }
-                }
-            }
-        }
-
+        let known_tags = Self::get_known_tags(&group_instance);
         let group = component.entities.pop().unwrap();
         let no_tag = group.get_tag();  // bad variable name, as in FIX
         let repetitions = group.get_value_i32();
@@ -102,6 +85,27 @@ impl FixGroup {
             known_tags,
             instances: vec![group_instance],
         }
+    }
+
+    fn get_known_tags(group_instance: &FixComponent) -> HashSet<i32> {
+        let mut known_tags: HashSet<i32> = group_instance
+            .entities
+            .iter()
+            .map(|fix_entity| fix_entity.get_tag())
+            .collect();
+
+        // TODO: improve this
+        // We need to register as known tags the ones inside a nested repeating group
+        for entity in &group_instance.entities {
+            if let FixEntity::Group(group) = entity {
+                for instance in &group.instances {
+                    for entity in &instance.entities {
+                        known_tags.insert(entity.get_tag());
+                    }
+                }
+            }
+        }
+        known_tags
     }
 
     fn create_new_instance(&mut self) {
@@ -170,6 +174,7 @@ impl FixMessage {
         Some(message)
     }
 
+    // from raw to a list of TagValues
     fn pre_process_message<'a>(&mut self, raw_message: &'a str) -> Option<Vec<TagValue<'a>>> {
         let start_offset = raw_message.find("8=")?;
         let field_separator = Self::get_separator(&raw_message[start_offset..]);
