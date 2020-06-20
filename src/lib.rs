@@ -59,8 +59,8 @@ impl Serialize for FixComponent {
 
 #[derive(Debug, Clone)]
 struct FixGroup {
-    delimiter: i32,
-    no_tag: i32,
+    delimiter: i32, // first tag of each group instance
+    no_tag: i32, // tag which contains the number of repetitions
     repetitions: i32,
     current_iteration: i32,
     instances: Vec<FixComponent>,
@@ -104,6 +104,10 @@ impl FixGroup {
             known_tags,
             candidate_indices: HashMap::new(),
         }
+    }
+
+    fn create_new_instance(&mut self) {
+        self.instances.push(FixComponent::new(Vec::new()));
     }
 
     fn insert_known_tag(&mut self, tag: i32) {
@@ -187,6 +191,7 @@ impl FixMessage {
         Some(message)
     }
 
+    // get FIX values separator: eg: 0x01 or |
     fn get_separator(fix_msg: &str) -> String {
         let mut index_start: usize = 9; // len(8=FIX.N.M)
         if fix_msg.chars().nth(index_start).unwrap() == '.' {
@@ -213,7 +218,7 @@ impl FixMessage {
     }
 
     fn get_candidates(&mut self) -> &mut HashMap<i32, usize> {
-        if self.parsing_group() {
+        if self.is_parsing_group() {
             &mut self.active_group_mut().candidate_indices
         } else {
             &mut self.candidate_indices
@@ -224,15 +229,17 @@ impl FixMessage {
         *self.get_candidates().get(&tag).unwrap()
     }
 
-    fn register_candidate(&mut self, tag: i32, index: usize) {
-        self.get_candidates().insert(tag, index);
+    // must be called before new insertion
+    fn register_candidate(&mut self, tag: i32) {
+        let candidate_index = self.get_entities().len();
+        self.get_candidates().insert(tag, candidate_index);
     }
 
     fn clear_candidates(&mut self) {
         self.get_candidates().clear();
     }
 
-    fn repeated_tag(&mut self, tag: i32) -> bool {
+    fn repeated_candidate(&mut self, tag: i32) -> bool {
         self.get_candidates().contains_key(&tag)
     }
 
@@ -249,48 +256,44 @@ impl FixMessage {
     fn add_tag_value(&mut self, tag: i32, value: String) {
         self.remove_pending_tag(tag);
 
-        while self.parsing_group() && !self.tag_in_group(tag) {
+        while self.is_parsing_group() && !self.tag_in_group(tag) {
             self.close_group();
         }
 
-        if self.repeated_tag(tag) {
+        if self.repeated_candidate(tag) {
             self.open_group(tag);
         }
 
-        if !self.parsing_group() {
-            self.root_component
-                .entities
-                .push(FixEntity::Field(tag, value));
-            self.register_candidate(tag, self.root_component.entities.len() - 1);
-            return;
+        if self.is_parsing_group() {
+            self.set_known_tag_in_group(tag);
         }
 
-        self.set_known_tag_in_group(tag);
-        let new_iteration = tag == self.active_group().delimiter;
-        if new_iteration {
-            self.active_group_mut().current_iteration += 1;
-        }
-
-        let group = &mut self.active_group_mut();
-        if new_iteration {
-            group
-                .instances
-                .push(FixComponent::new(Vec::new()));
-        }
-        group
-            .instances
-            .last_mut()
-            .unwrap()
-            .entities
-            .push(FixEntity::Field(tag, value));
-        let index = group.instances.last_mut().unwrap().entities.len() - 1;
-
-        if new_iteration {
-            self.clear_candidates();
-            println!("{}-- repetition {} --", self.get_spaces(), self.active_group().current_iteration);
+        if self.is_new_iteration(tag) {
+            self.create_new_group_instance();
         } else {
-            self.register_candidate(tag, index);
+            self.register_candidate(tag);
         }
+
+        self.get_entities().push(FixEntity::Field(tag, value));
+    }
+
+    fn is_new_iteration(&self, tag: i32) -> bool {
+        self.is_parsing_group() && tag == self.active_group().delimiter
+    }
+
+    fn increment_iteration(&mut self) {
+        println!("{}-- repetition {} --", self.get_spaces(), self.active_group().current_iteration + 1);
+        self.active_group_mut().current_iteration += 1
+    }
+
+    fn get_entities(&mut self) -> &mut Vec<FixEntity> {
+        &mut self.get_component().entities
+    }
+
+    fn create_new_group_instance(&mut self) {
+        self.clear_candidates();
+        self.increment_iteration();
+        self.active_group_mut().create_new_instance();
     }
 
     fn get_spaces(&self) -> String {
@@ -304,15 +307,15 @@ impl FixMessage {
     }
 
     fn get_component(&mut self) -> &mut FixComponent {
-        if self.parsing_group() {
+        if self.is_parsing_group() {
             self.active_group_mut().instances.last_mut().unwrap()
         } else {
             &mut self.root_component
         }
     }
 
-    fn parsing_group(&self) -> bool {
-        !self.active_groups.is_empty()
+    fn is_parsing_group(&self) -> bool {
+        ! self.active_groups.is_empty()
     }
 
     fn active_group(&self) -> &FixGroup {
@@ -324,8 +327,8 @@ impl FixMessage {
     }
 
     fn tag_in_group(&mut self, tag: i32) -> bool {
-        // from cheapest to more expensive check
-        !self.last_iteration() || self.known_group_tag(tag) || self.pending_tag_in_last_instance()
+        // from cheaper to more expensive check
+        !self.is_last_iteration() || self.is_known_group_tag(tag) || self.pending_tag_in_last_instance()
     }
 
     fn pending_tag_in_last_instance(&mut self) -> bool {
@@ -357,11 +360,11 @@ impl FixMessage {
         self.pending_tag_indices.get(&tag).unwrap().front()
     }
 
-    fn known_group_tag(&self, tag: i32) -> bool {
+    fn is_known_group_tag(&self, tag: i32) -> bool {
         self.active_group().known_tags.contains(&tag)
     }
 
-    fn last_iteration(&self) -> bool {
+    fn is_last_iteration(&self) -> bool {
         self.active_group().current_iteration == self.active_group().repetitions
     }
 }
