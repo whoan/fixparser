@@ -126,7 +126,6 @@ pub struct FixMessage {
     pub root_component: FixComponent,
     candidate_indices: Vec<HashMap<i32, usize>>, // store indices of tags of potential nested group
     active_groups: Vec<FixGroup>,
-    current_index: usize, // for debugging
     // example:
     // A, B, no_C=3, C1, C2, C1, no_D=2, D1, D2, D1, D2, C2, C1, C2
     //        ^                   ^
@@ -142,35 +141,16 @@ impl FixMessage {
             root_component: FixComponent::new(Vec::new()),
             candidate_indices,
             active_groups: Vec::new(),
-            current_index: 0,
         }
     }
 
     pub fn from_raw(raw_message: &str) -> Option<FixMessage> {
         let mut message = FixMessage::new();
-        let tag_values = message.pre_process_message(&raw_message)?;
-        let mut end_of_message_found = false;
-
-        message.current_index = 0;
-        for tag_value in tag_values.iter() {
-            if end_of_message_found {
-                println!(
-                    "Already processed tag 10. Not processing since: {:?}\n",
-                    tag_value
-                );
-                break;
-            }
-            let tag = tag_value.0;
-            message.add_tag_value(tag, String::from(tag_value.1));
-            println!("{}Index {} - Added {} - {}\n", message.get_spaces(), message.current_index, tag, tag_value.1);
-            message.current_index += 1;
-            end_of_message_found = tag_value.0 == 10;
-        }
-
-        if !end_of_message_found {
-            println!("Message processed but incomplete");
-        }
-
+        message
+            .pre_process_message(&raw_message)?
+            .iter()
+            .enumerate()
+            .for_each(|(index, tag_value)| message.add_tag_value(tag_value.0, String::from(tag_value.1), index));
         Some(message)
     }
 
@@ -183,21 +163,32 @@ impl FixMessage {
             return None;
         }
 
-        let mut tag_values: Vec<TagValue> = Vec::new();
-        for tag_value in raw_message[start_offset..].split(&field_separator) {
-            let tag_value: Vec<&str> = tag_value.split('=').collect();
-            if tag_value.len() > 1 {
+        let mut end_of_message_found = false;
+        let tag_values = raw_message[start_offset..]
+            .split(&field_separator)
+            .map(|tag_value| tag_value.split('=').collect::<Vec<&str>>())
+            .filter(|tag_value| tag_value.len() > 1)
+            .enumerate()
+            .map(|(index, tag_value)| {
                 let tag = tag_value[0].parse().unwrap_or(0);
-                let value = tag_value[1];
-                tag_values.push(TagValue(tag, value));
                 self
                     .pending_tag_indices
                     .entry(tag)
                     .or_insert(VecDeque::new())
-                    .push_back(self.current_index);
-                self.current_index += 1;
-            }
-        }
+                    .push_back(index);
+                TagValue(tag, tag_value[1])
+            })
+            .take_while(|tag_value| {
+                if end_of_message_found {
+                    println!("WARNING: Detected tag after tag 10: {}", tag_value.0);
+                    return false;
+                }
+                end_of_message_found = tag_value.0 == 10;
+                return true;
+            })
+            .collect();
+
+        self.check_message_is_valid();
         Some(tag_values)
     }
 
@@ -207,19 +198,25 @@ impl FixMessage {
         if fix_msg.chars().nth(index_start).unwrap() == '.' {
             index_start += 4; // len(.SPX)
         }
-        let mut index_end = index_start;
-        for it in fix_msg[index_start..].chars() {
-            if it.is_digit(10) {
-                break;
-            }
-            index_end += 1;
-        }
+
+        let index_end = index_start + fix_msg[index_start..]
+            .chars()
+            .take_while(|char| ! char.is_digit(10))
+            .count();
+
         let field_separator = fix_msg[index_start..index_end].to_string();
         println!("separator [{}]", field_separator);
         field_separator
     }
 
-    fn add_tag_value(&mut self, tag: i32, value: String) {
+    fn check_message_is_valid(&self) {
+        if let None = self.pending_tag_indices.get(&10) {
+            println!("WARNING: Message is incomplete");
+        }
+    }
+
+    fn add_tag_value(&mut self, tag: i32, value: String, index: usize) {
+        println!("{}Index {} - Added {} - {}\n", self.get_spaces(), index, tag, value);
         self.remove_pending_tag(tag);
 
         while self.is_parsing_group() && !self.tag_in_group(tag) {
@@ -254,22 +251,22 @@ impl FixMessage {
         self.candidate_indices.push(HashMap::new());
     }
 
-    fn get_candidates(&mut self) -> &mut HashMap<i32, usize> {
+    fn get_candidates(&self) -> &HashMap<i32, usize> {
+        self.candidate_indices.last().unwrap()
+    }
+
+    fn get_candidates_mut(&mut self) -> &mut HashMap<i32, usize> {
         self.candidate_indices.last_mut().unwrap()
     }
 
-    fn get_index_of_candidate(&mut self, tag: i32) -> usize {
+    fn get_index_of_candidate(&self, tag: i32) -> usize {
         *self.get_candidates().get(&tag).unwrap()
     }
 
     // must be called before new insertion
     fn register_candidate(&mut self, tag: i32) {
         let candidate_index = self.get_entities().len();
-        self.get_candidates().insert(tag, candidate_index);
-    }
-
-    fn clear_candidates(&mut self) {
-        self.get_candidates().clear();
+        self.get_candidates_mut().insert(tag, candidate_index);
     }
 
     fn repeated_candidate(&mut self, tag: i32) -> bool {
@@ -305,7 +302,7 @@ impl FixMessage {
     }
 
     fn create_new_group_instance(&mut self) {
-        self.clear_candidates();
+        self.get_candidates_mut().clear();
         self.increment_iteration();
         self.active_group_mut().create_new_instance();
     }
