@@ -136,23 +136,20 @@ impl FixMessage {
     pub fn from_tag_value(input_message: &str) -> Option<FixMessage> {
         let tag_values = FixMessage::pre_process_message(&input_message)?;
         let mut message = FixMessage::new();
-        tag_values
-            .iter()
-            .enumerate()
-            .for_each(|(index, tag_value)| {
-                message
-                    .pending_tag_indices
-                    .entry(tag_value.0)
-                    .or_insert_with(VecDeque::new)
-                    .push_back(index);
-            });
-        tag_values
-            .iter()
-            .enumerate()
-            .for_each(|(index, tag_value)| {
-                message.add_tag_value(tag_value.0, String::from(tag_value.1), index);
-            });
+
+        for (index, tag_value) in tag_values.iter().enumerate() {
+            message
+                .pending_tag_indices
+                .entry(tag_value.0)
+                .or_insert_with(VecDeque::new)
+                .push_back(index);
+        }
         message.check_message_is_valid()?;
+
+        for (index, tag_value) in tag_values.iter().enumerate() {
+            message.add_tag_value(tag_value.0, String::from(tag_value.1), index);
+        }
+
         Some(message)
     }
 
