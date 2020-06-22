@@ -160,17 +160,17 @@ impl FixMessage {
 
         let tag_values = raw_message[start_offset..]
             .split(&field_separator)
-            .map(|tag_value| tag_value.split('=').collect::<Vec<&str>>())
-            .filter(|tag_value| tag_value.len() > 1)
+            .map(|tag_value| tag_value.split_at(tag_value.find('=').unwrap_or(tag_value.len())))
+            .filter(|tag_value| tag_value.1.len() > 1)
             .enumerate()
             .map(|(index, tag_value)| {
-                let tag = tag_value[0].parse().unwrap_or(0);
+                let tag = tag_value.0.parse().unwrap_or(0);
                 self
                     .pending_tag_indices
                     .entry(tag)
                     .or_insert(VecDeque::new())
                     .push_back(index);
-                TagValue(tag, tag_value[1])
+                TagValue(tag, &tag_value.1[1..])
             })
             .take_while(|tag_value| {
                 if end_of_message_found {
