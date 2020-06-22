@@ -160,7 +160,7 @@ impl FixMessage {
 
         let tag_values = raw_message[start_offset..]
             .split(&field_separator)
-            .map(|tag_value| tag_value.split_at(tag_value.find('=').unwrap_or(tag_value.len())))
+            .map(|tag_value| tag_value.split_at(tag_value.find('=').unwrap_or_else(|| tag_value.len())))
             .filter(|tag_value| tag_value.1.len() > 1)
             .enumerate()
             .map(|(index, tag_value)| {
@@ -168,7 +168,7 @@ impl FixMessage {
                 self
                     .pending_tag_indices
                     .entry(tag)
-                    .or_insert(VecDeque::new())
+                    .or_insert_with(VecDeque::new)
                     .push_back(index);
                 TagValue(tag, &tag_value.1[1..])
             })
@@ -178,7 +178,7 @@ impl FixMessage {
                     return false;
                 }
                 end_of_message_found = tag_value.0 == 10;
-                return true;
+                true
             })
             .collect();
 
@@ -207,7 +207,7 @@ impl FixMessage {
     }
 
     fn check_message_is_valid(&self) -> Option<()> {
-        if let None = self.pending_tag_indices.get(&10) {
+        if self.pending_tag_indices.get(&10).is_none() {
             println!("WARNING: Message is incomplete. Discarding...");
             return None
         }
