@@ -155,13 +155,9 @@ impl FixMessage {
     // from raw to a list of TagValues
     fn pre_process_message<'a>(&mut self, raw_message: &'a str) -> Option<Vec<TagValue<'a>>> {
         let start_offset = raw_message.find("8=")?;
-        let field_separator = Self::get_separator(&raw_message[start_offset..]);
-
-        if field_separator == "" {
-            return None;
-        }
-
+        let field_separator = Self::get_separator(&raw_message[start_offset..])?;
         let mut end_of_message_found = false;
+
         let tag_values = raw_message[start_offset..]
             .split(&field_separator)
             .map(|tag_value| tag_value.split('=').collect::<Vec<&str>>())
@@ -191,7 +187,7 @@ impl FixMessage {
     }
 
     // get FIX values separator: eg: 0x01 or |
-    fn get_separator(fix_msg: &str) -> String {
+    fn get_separator(fix_msg: &str) -> Option<String> {
         let mut index_start: usize = 9; // len(8=FIX.N.M)
         if fix_msg.chars().nth(index_start).unwrap() == '.' {
             index_start += 4; // len(.SPX)
@@ -204,7 +200,10 @@ impl FixMessage {
 
         let field_separator = fix_msg[index_start..index_end].to_string();
         println!("separator [{}]", field_separator);
-        field_separator
+        if field_separator == "" {
+            return None
+        }
+        Some (field_separator)
     }
 
     fn check_message_is_valid(&self) {
