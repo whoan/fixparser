@@ -138,38 +138,41 @@ impl FixMessage {
     }
 
     pub fn from_tag_value(input_message: &str) -> Option<FixMessage> {
+        let tag_values = FixMessage::pre_process_message(&input_message)?;
         let mut message = FixMessage::new();
-        message
-            .pre_process_message(&input_message)?
+        tag_values
             .iter()
             .enumerate()
             .for_each(|(index, tag_value)| {
-                message.add_tag_value(tag_value.0, String::from(tag_value.1), index)
+                message
+                    .pending_tag_indices
+                    .entry(tag_value.0)
+                    .or_insert_with(VecDeque::new)
+                    .push_back(index);
             });
+        tag_values
+            .iter()
+            .enumerate()
+            .for_each(|(index, tag_value)| {
+                message.add_tag_value(tag_value.0, String::from(tag_value.1), index);
+            });
+        message.check_message_is_valid()?;
         Some(message)
     }
 
     // from tag value encoding to a list of TagValue's
-    fn pre_process_message<'a>(&mut self, input_message: &'a str) -> Option<Vec<TagValue<'a>>> {
+    fn pre_process_message<'a>(input_message: &'a str) -> Option<Vec<TagValue<'a>>> {
         let start_offset = input_message.find("8=")?;
         let field_separator = Self::get_separator(&input_message[start_offset..])?;
         let mut end_of_message_found = false;
 
-        let tag_values = input_message[start_offset..]
+        input_message[start_offset..]
             .split(&field_separator)
             .map(|tag_value| {
                 tag_value.split_at(tag_value.find('=').unwrap_or_else(|| tag_value.len()))
             })
             .filter(|tag_value| tag_value.1.len() > 1)
-            .enumerate()
-            .map(|(index, tag_value)| {
-                let tag = tag_value.0.parse().unwrap_or(0);
-                self.pending_tag_indices
-                    .entry(tag)
-                    .or_insert_with(VecDeque::new)
-                    .push_back(index);
-                TagValue(tag, &tag_value.1[1..])
-            })
+            .map(|tag_value| TagValue(tag_value.0.parse().unwrap_or(0), &tag_value.1[1..]))
             .take_while(|tag_value| {
                 if end_of_message_found {
                     println!("WARNING: Detected tag after tag 10: {}", tag_value.0);
@@ -178,10 +181,8 @@ impl FixMessage {
                 end_of_message_found = tag_value.0 == 10;
                 true
             })
-            .collect();
-
-        self.check_message_is_valid()?;
-        Some(tag_values)
+            .map(|tag_value| Some(tag_value))
+            .collect()
     }
 
     // get FIX values separator: eg: 0x01 or |
