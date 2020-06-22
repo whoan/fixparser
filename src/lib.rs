@@ -118,7 +118,7 @@ pub struct FixMessage {
     pending_tag_indices: HashMap<i32, VecDeque<usize>>,
     pub root_component: FixComponent,
     candidate_indices: Vec<HashMap<i32, usize>>, // store indices of tags of potential nested group
-    active_groups: Vec<FixGroup>,
+    active_groups: Vec<FixGroup>,                // contains the groups currently being parsed
     // example:
     // A, B, no_C=3, C1, C2, C1, no_D=2, D1, D2, D1, D2, C2, C1, C2
     //        ^                   ^
@@ -318,9 +318,7 @@ impl FixMessage {
     }
 
     fn get_spaces(&self) -> String {
-        let mut spaces: Vec<char> = Vec::new();
-        spaces.resize(self.active_groups.len() * 2, ' ');
-        spaces.iter().collect()
+        " ".repeat(self.active_groups.len() * 2)
     }
 
     fn set_known_tag_in_group(&mut self, tag: i32) {
