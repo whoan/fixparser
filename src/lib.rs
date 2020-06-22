@@ -68,18 +68,14 @@ impl FixGroup {
     pub fn new(delimiter: i32, index_first_delimiter: usize, component: &mut FixComponent) -> Self {
         let group_instance =
             FixComponent::new(component.entities.drain(index_first_delimiter..).collect());
-        let known_tags = Self::get_known_tags(&group_instance);
         let group = component.entities.pop().unwrap();
-        let no_tag = group.get_tag(); // bad variable name, as in FIX
-        let repetitions = group.get_value_i32();
-        println!(". Repetitions {}\n", repetitions);
 
         Self {
-            no_tag,
+            no_tag: group.get_tag(), // bad variable name, as in FIX
             delimiter,
-            repetitions,
+            repetitions: group.get_value_i32(),
             current_iteration: 1,
-            known_tags,
+            known_tags: Self::get_known_tags(&group_instance),
             instances: vec![group_instance],
         }
     }
@@ -246,7 +242,7 @@ impl FixMessage {
     }
 
     fn open_group(&mut self, group_delimiter: i32) {
-        print!("{}INFO: Group detected", self.get_spaces());
+        println!("{}INFO: Group detected", self.get_spaces());
         let group = FixGroup::new(
             group_delimiter,
             self.get_index_of_candidate(group_delimiter),
