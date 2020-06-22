@@ -51,10 +51,10 @@ fn more_tags() {
 }
 
 #[test]
+#[should_panic]
 fn missinig_tags() {
     let input = "Recv | 8=FIX.4.4 | 9=some";
-
-    let output = r#"{"8":"FIX.4.4","9":"some"}"#;
+    let output = "";
 
     if let Some(fix_message) = fix::FixMessage::from_raw(&input) {
         assert_eq!(output, serde_json::json!(fix_message.root_component).to_string());

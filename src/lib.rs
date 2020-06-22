@@ -182,7 +182,7 @@ impl FixMessage {
             })
             .collect();
 
-        self.check_message_is_valid();
+        self.check_message_is_valid()?;
         Some(tag_values)
     }
 
@@ -206,10 +206,12 @@ impl FixMessage {
         Some (field_separator)
     }
 
-    fn check_message_is_valid(&self) {
+    fn check_message_is_valid(&self) -> Option<()> {
         if let None = self.pending_tag_indices.get(&10) {
-            println!("WARNING: Message is incomplete");
+            println!("WARNING: Message is incomplete. Discarding...");
+            return None
         }
+        Some(())
     }
 
     fn add_tag_value(&mut self, tag: i32, value: String, index: usize) {
