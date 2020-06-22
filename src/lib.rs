@@ -110,6 +110,7 @@ impl FixGroup {
 #[derive(Debug)]
 struct TagValue<'a>(i32, &'a str);
 
+#[derive(Debug)]
 pub struct FixMessage {
     pending_tag_indices: HashMap<i32, VecDeque<usize>>,
     pub root_component: FixComponent,
@@ -149,6 +150,7 @@ impl FixMessage {
         for (index, tag_value) in tag_values.iter().enumerate() {
             message.add_tag_value(tag_value.0, String::from(tag_value.1), index);
         }
+        message.clean();
 
         Some(message)
     }
@@ -236,6 +238,12 @@ impl FixMessage {
         }
 
         self.get_entities().push(FixEntity::Field(tag, value));
+    }
+
+    fn clean(&mut self) {
+        self.pending_tag_indices.clear();
+        self.candidate_indices.clear();
+        self.active_groups.clear();
     }
 
     fn open_group(&mut self, group_delimiter: i32) {
