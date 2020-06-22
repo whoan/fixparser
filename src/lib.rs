@@ -142,7 +142,7 @@ impl FixMessage {
         }
     }
 
-    pub fn from_raw(raw_message: &str) -> Option<FixMessage> {
+    pub fn from_tag_value(raw_message: &str) -> Option<FixMessage> {
         let mut message = FixMessage::new();
         message
             .pre_process_message(&raw_message)?
