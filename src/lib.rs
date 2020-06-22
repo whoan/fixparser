@@ -88,23 +88,21 @@ impl FixGroup {
     }
 
     fn get_known_tags(group_instance: &FixComponent) -> HashSet<i32> {
-        let mut known_tags: HashSet<i32> = group_instance
+        let mut known_tags = HashSet::<i32>::new();
+        group_instance
             .entities
             .iter()
-            .map(|fix_entity| fix_entity.get_tag())
-            .collect();
-
-        // TODO: improve this
-        // We need to register as known tags the ones inside a nested repeating group
-        for entity in &group_instance.entities {
-            if let FixEntity::Group(group) = entity {
-                for instance in &group.instances {
-                    for entity in &instance.entities {
-                        known_tags.insert(entity.get_tag());
-                    }
+            .for_each(|entity| match entity {
+                FixEntity::Field(tag, _value) => {
+                    known_tags.insert(*tag);
                 }
-            }
-        }
+                FixEntity::Group(group) => {
+                    group
+                        .known_tags
+                        .iter()
+                        .for_each(|known_tag| { known_tags.insert(*known_tag); });
+                }
+            });
         known_tags
     }
 
@@ -343,21 +341,15 @@ impl FixMessage {
     }
 
     fn pending_tag_in_last_instance(&mut self) -> bool {
-        let mut clean: Vec<i32> = Vec::new();
-        for known_tag in self.active_group().known_tags.iter() {
-            if let Some(tag_index) = self.get_next_index_of_pending_tag(*known_tag) {
-                if self.index_belongs_to_current_group(*tag_index) {
-                    break;
+        self.active_group()
+            .known_tags
+            .iter()
+            .any(|known_tag| {
+                if let Some(tag_index) = self.get_next_index_of_pending_tag(*known_tag) {
+                    return self.index_belongs_to_current_group(*tag_index)
                 }
-            }
-            clean.push(*known_tag);  // optimization
-        }
-
-        for to_clean in clean {
-            self.active_group_mut().known_tags.remove(&to_clean);
-        }
-
-        !self.active_group().known_tags.is_empty()
+                false
+            })
     }
 
     fn index_belongs_to_current_group(&self, tag_index: usize) -> bool {
