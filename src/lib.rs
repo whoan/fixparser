@@ -1,7 +1,6 @@
 use serde::{ser::SerializeMap, Serialize, Serializer};
 use std::collections::{HashMap, HashSet, VecDeque};
 
-
 #[derive(Debug, Clone)]
 enum FixEntity {
     Field(i32, String),
@@ -23,7 +22,6 @@ impl FixEntity {
         panic!("ill-formated FIX");
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub struct FixComponent {
@@ -56,11 +54,10 @@ impl Serialize for FixComponent {
     }
 }
 
-
 #[derive(Debug, Clone)]
 struct FixGroup {
     delimiter: i32, // first tag of each group instance
-    no_tag: i32, // tag which contains the number of repetitions
+    no_tag: i32,    // tag which contains the number of repetitions
     repetitions: i32,
     current_iteration: i32,
     known_tags: HashSet<i32>, // tags we know that belong to this group
@@ -73,7 +70,7 @@ impl FixGroup {
             FixComponent::new(component.entities.drain(index_first_delimiter..).collect());
         let known_tags = Self::get_known_tags(&group_instance);
         let group = component.entities.pop().unwrap();
-        let no_tag = group.get_tag();  // bad variable name, as in FIX
+        let no_tag = group.get_tag(); // bad variable name, as in FIX
         let repetitions = group.get_value_i32();
         println!(". Repetitions {}\n", repetitions);
 
@@ -97,10 +94,9 @@ impl FixGroup {
                     known_tags.insert(*tag);
                 }
                 FixEntity::Group(group) => {
-                    group
-                        .known_tags
-                        .iter()
-                        .for_each(|known_tag| { known_tags.insert(*known_tag); });
+                    group.known_tags.iter().for_each(|known_tag| {
+                        known_tags.insert(*known_tag);
+                    });
                 }
             });
         known_tags
@@ -114,7 +110,6 @@ impl FixGroup {
         self.known_tags.insert(tag);
     }
 }
-
 
 #[derive(Debug)]
 struct TagValue<'a>(i32, &'a str);
@@ -148,7 +143,9 @@ impl FixMessage {
             .pre_process_message(&raw_message)?
             .iter()
             .enumerate()
-            .for_each(|(index, tag_value)| message.add_tag_value(tag_value.0, String::from(tag_value.1), index));
+            .for_each(|(index, tag_value)| {
+                message.add_tag_value(tag_value.0, String::from(tag_value.1), index)
+            });
         Some(message)
     }
 
@@ -160,13 +157,14 @@ impl FixMessage {
 
         let tag_values = raw_message[start_offset..]
             .split(&field_separator)
-            .map(|tag_value| tag_value.split_at(tag_value.find('=').unwrap_or_else(|| tag_value.len())))
+            .map(|tag_value| {
+                tag_value.split_at(tag_value.find('=').unwrap_or_else(|| tag_value.len()))
+            })
             .filter(|tag_value| tag_value.1.len() > 1)
             .enumerate()
             .map(|(index, tag_value)| {
                 let tag = tag_value.0.parse().unwrap_or(0);
-                self
-                    .pending_tag_indices
+                self.pending_tag_indices
                     .entry(tag)
                     .or_insert_with(VecDeque::new)
                     .push_back(index);
@@ -193,29 +191,36 @@ impl FixMessage {
             index_start += 4; // len(.SPX)
         }
 
-        let index_end = index_start + fix_msg[index_start..]
-            .chars()
-            .take_while(|char| ! char.is_digit(10))
-            .count();
+        let index_end = index_start
+            + fix_msg[index_start..]
+                .chars()
+                .take_while(|char| !char.is_digit(10))
+                .count();
 
         let field_separator = fix_msg[index_start..index_end].to_string();
         println!("separator [{}]", field_separator);
         if field_separator == "" {
-            return None
+            return None;
         }
-        Some (field_separator)
+        Some(field_separator)
     }
 
     fn check_message_is_valid(&self) -> Option<()> {
         if self.pending_tag_indices.get(&10).is_none() {
             println!("WARNING: Message is incomplete. Discarding...");
-            return None
+            return None;
         }
         Some(())
     }
 
     fn add_tag_value(&mut self, tag: i32, value: String, index: usize) {
-        println!("{}Index {} - Added {} - {}\n", self.get_spaces(), index, tag, value);
+        println!(
+            "{}Index {} - Added {} - {}",
+            self.get_spaces(),
+            index,
+            tag,
+            value
+        );
         self.remove_pending_tag(tag);
 
         while self.is_parsing_group() && !self.tag_in_group(tag) {
@@ -283,7 +288,9 @@ impl FixMessage {
     fn close_group(&mut self) {
         println!("{}INFO: Stop parsing group\n", self.get_spaces());
         let closed_group = self.active_groups.pop().unwrap();
-        self.get_component().entities.push(FixEntity::Group(closed_group));
+        self.get_component()
+            .entities
+            .push(FixEntity::Group(closed_group));
         self.candidate_indices.pop();
     }
 
@@ -292,7 +299,11 @@ impl FixMessage {
     }
 
     fn increment_iteration(&mut self) {
-        println!("{}-- repetition {} --", self.get_spaces(), self.active_group().current_iteration + 1);
+        println!(
+            "{}-- repetition {} --",
+            self.get_spaces(),
+            self.active_group().current_iteration + 1
+        );
         self.active_group_mut().current_iteration += 1
     }
 
@@ -325,7 +336,7 @@ impl FixMessage {
     }
 
     fn is_parsing_group(&self) -> bool {
-        ! self.active_groups.is_empty()
+        !self.active_groups.is_empty()
     }
 
     fn active_group(&self) -> &FixGroup {
@@ -338,24 +349,25 @@ impl FixMessage {
 
     fn tag_in_group(&mut self, tag: i32) -> bool {
         // from cheaper to more expensive check
-        !self.is_last_iteration() || self.is_known_group_tag(tag) || self.pending_tag_in_last_instance()
+        !self.is_last_iteration()
+            || self.is_known_group_tag(tag)
+            || self.pending_tag_in_last_instance()
     }
 
     fn pending_tag_in_last_instance(&mut self) -> bool {
-        self.active_group()
-            .known_tags
-            .iter()
-            .any(|known_tag| {
-                if let Some(tag_index) = self.get_next_index_of_pending_tag(*known_tag) {
-                    return self.index_belongs_to_current_group(*tag_index)
-                }
-                false
-            })
+        self.active_group().known_tags.iter().any(|known_tag| {
+            if let Some(tag_index) = self.get_next_index_of_pending_tag(*known_tag) {
+                return self.index_belongs_to_current_group(*tag_index);
+            }
+            false
+        })
     }
 
     fn index_belongs_to_current_group(&self, tag_index: usize) -> bool {
-        if let Some(delimiter_index) = self.get_next_index_of_pending_tag(self.active_group().delimiter) {
-            return tag_index < *delimiter_index
+        if let Some(delimiter_index) =
+            self.get_next_index_of_pending_tag(self.active_group().delimiter)
+        {
+            return tag_index < *delimiter_index;
         }
         true
     }
