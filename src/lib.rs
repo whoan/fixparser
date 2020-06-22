@@ -65,7 +65,7 @@ struct FixGroup {
 }
 
 impl FixGroup {
-    pub fn new(delimiter: i32, index_first_delimiter: usize, component: &mut FixComponent) -> Self {
+    fn new(delimiter: i32, index_first_delimiter: usize, component: &mut FixComponent) -> Self {
         let group_instance =
             FixComponent::new(component.entities.drain(index_first_delimiter..).collect());
         let group = component.entities.pop().unwrap();
@@ -113,7 +113,7 @@ struct TagValue<'a>(i32, &'a str);
 #[derive(Debug)]
 pub struct FixMessage {
     pending_tag_indices: HashMap<i32, VecDeque<usize>>,
-    pub root_component: FixComponent,
+    root_component: FixComponent,
     candidate_indices: Vec<HashMap<i32, usize>>, // store indices of tags of potential nested group
     active_groups: Vec<FixGroup>,                // contains the groups currently being parsed
     // example:
@@ -153,6 +153,10 @@ impl FixMessage {
         message.clean();
 
         Some(message)
+    }
+
+    pub fn get(&self) -> &FixComponent {
+        &self.root_component
     }
 
     // from tag value encoding to a list of TagValue's

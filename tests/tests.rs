@@ -6,7 +6,7 @@ fn nested_nested_groups_1() {
     if let Some(fix_message) = fix::FixMessage::from_tag_value(&input) {
         assert_eq!(
             output,
-            serde_json::json!(fix_message.root_component).to_string()
+            serde_json::json!(fix_message.get()).to_string()
         );
     } else {
         panic!("It's not a FIX-compliant message");
@@ -21,7 +21,7 @@ fn nested_nested_groups_2() {
     if let Some(fix_message) = fix::FixMessage::from_tag_value(&input) {
         assert_eq!(
             output,
-            serde_json::json!(fix_message.root_component).to_string()
+            serde_json::json!(fix_message.get()).to_string()
         );
     } else {
         panic!("It's not a FIX-compliant message");
@@ -37,7 +37,7 @@ fn nested_nested_groups_3() {
     if let Some(fix_message) = fix::FixMessage::from_tag_value(&input) {
         assert_eq!(
             output,
-            serde_json::json!(fix_message.root_component).to_string()
+            serde_json::json!(fix_message.get()).to_string()
         );
     } else {
         panic!("It's not a FIX-compliant message");
@@ -52,7 +52,7 @@ fn more_tags() {
     if let Some(fix_message) = fix::FixMessage::from_tag_value(&input) {
         assert_eq!(
             output,
-            serde_json::json!(fix_message.root_component).to_string()
+            serde_json::json!(fix_message.get()).to_string()
         );
     } else {
         panic!("It's not a FIX-compliant message");
@@ -68,7 +68,7 @@ fn missinig_tags() {
     if let Some(fix_message) = fix::FixMessage::from_tag_value(&input) {
         assert_eq!(
             output,
-            serde_json::json!(fix_message.root_component).to_string()
+            serde_json::json!(fix_message.get()).to_string()
         );
     } else {
         panic!("It's not a FIX-compliant message");
@@ -83,7 +83,7 @@ fn value_with_equal() {
     if let Some(fix_message) = fix::FixMessage::from_tag_value(&input) {
         assert_eq!(
             output,
-            serde_json::json!(fix_message.root_component).to_string()
+            serde_json::json!(fix_message.get()).to_string()
         );
     } else {
         panic!("It's not a FIX-compliant message");
@@ -99,7 +99,7 @@ fn big_msg() {
     if let Some(fix_message) = fix::FixMessage::from_tag_value(&input) {
         assert_eq!(
             output,
-            serde_json::json!(fix_message.root_component).to_string()
+            serde_json::json!(fix_message.get()).to_string()
         );
     } else {
         panic!("It's not a FIX-compliant message");
