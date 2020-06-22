@@ -137,10 +137,10 @@ impl FixMessage {
         }
     }
 
-    pub fn from_tag_value(raw_message: &str) -> Option<FixMessage> {
+    pub fn from_tag_value(input_message: &str) -> Option<FixMessage> {
         let mut message = FixMessage::new();
         message
-            .pre_process_message(&raw_message)?
+            .pre_process_message(&input_message)?
             .iter()
             .enumerate()
             .for_each(|(index, tag_value)| {
@@ -149,13 +149,13 @@ impl FixMessage {
         Some(message)
     }
 
-    // from raw to a list of TagValues
-    fn pre_process_message<'a>(&mut self, raw_message: &'a str) -> Option<Vec<TagValue<'a>>> {
-        let start_offset = raw_message.find("8=")?;
-        let field_separator = Self::get_separator(&raw_message[start_offset..])?;
+    // from tag value encoding to a list of TagValue's
+    fn pre_process_message<'a>(&mut self, input_message: &'a str) -> Option<Vec<TagValue<'a>>> {
+        let start_offset = input_message.find("8=")?;
+        let field_separator = Self::get_separator(&input_message[start_offset..])?;
         let mut end_of_message_found = false;
 
-        let tag_values = raw_message[start_offset..]
+        let tag_values = input_message[start_offset..]
             .split(&field_separator)
             .map(|tag_value| {
                 tag_value.split_at(tag_value.find('=').unwrap_or_else(|| tag_value.len()))
