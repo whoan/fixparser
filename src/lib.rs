@@ -112,8 +112,8 @@ struct TagValue<'a>(i32, &'a str);
 
 #[derive(Debug)]
 pub struct FixMessage {
-    pending_tag_indices: HashMap<i32, VecDeque<usize>>,
     root_component: FixComponent,
+    pending_tag_indices: HashMap<i32, VecDeque<usize>>,
     candidate_indices: Vec<HashMap<i32, usize>>, // store indices of tags of potential nested group
     active_groups: Vec<FixGroup>,                // contains the groups currently being parsed
     // example:
@@ -127,8 +127,8 @@ impl FixMessage {
         let mut candidate_indices = Vec::new();
         candidate_indices.push(HashMap::new());
         Self {
-            pending_tag_indices: HashMap::new(),
             root_component: FixComponent::new(Vec::new()),
+            pending_tag_indices: HashMap::new(),
             candidate_indices,
             active_groups: Vec::new(),
         }
