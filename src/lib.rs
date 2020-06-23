@@ -1,3 +1,19 @@
+//! `fix` is a Rust library to decode FIX (Financial Information eXchange) messages.
+//!
+//! - It supports groups and you don't need to provide the FIX dictionary
+//! - You don't need to specify the separator of the input string as long as they are consistent. eg: 0x01, |, etc...
+//! - You don't need to "trim" the input string as the lib detects the beginning and end of the message
+//!
+//! Example of a FIX message with a nested group this library knows how to parse:
+//!
+//! ```ignore
+//! A, B, no_C=3, C1, C2, C1, no_D=2, D1, D2, D1, D2, C2, C1, C2
+//!         ^                   ^
+//!   start group C       start group D (in second instance of group C)
+//! ```
+//!
+//! See tests/ folder for more interesting examples
+
 use serde::{ser::SerializeMap, Serialize, Serializer};
 use std::collections::{HashMap, HashSet, VecDeque};
 
@@ -23,6 +39,17 @@ impl FixEntity {
     }
 }
 
+/// This is how a FIX message is internally represented.
+///
+/// ```ignore
+/// FixMessage    := FixComponent
+/// FixComponent  := FixEntity*
+///
+/// FixEntity     := Field | Group
+///
+/// Field         := (tag: i32, value: String)
+/// Group         := FixComponent*
+/// ```
 #[derive(Debug, Clone)]
 pub struct FixComponent {
     entities: Vec<FixEntity>,
@@ -110,16 +137,12 @@ impl FixGroup {
 #[derive(Debug)]
 struct TagValue<'a>(i32, &'a str);
 
-#[derive(Debug)]
+/// This is the interface you interact with.
 pub struct FixMessage {
     root_component: FixComponent,
     pending_tag_indices: HashMap<i32, VecDeque<usize>>,
     candidate_indices: Vec<HashMap<i32, usize>>, // store indices of tags of potential nested group
     active_groups: Vec<FixGroup>,                // contains the groups currently being parsed
-    // example:
-    // A, B, no_C=3, C1, C2, C1, no_D=2, D1, D2, D1, D2, C2, C1, C2
-    //        ^                   ^
-    //   start group C       start group D (in second instance of group C)
 }
 
 impl FixMessage {
@@ -134,6 +157,17 @@ impl FixMessage {
         }
     }
 
+    /// Creates a FixMessage from an input string encoded in [FIX Tag=Value (classic FIX)](https://www.fixtrading.org/standards/tagvalue/).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let input = "Recv | 8=FIX.4.4 | 555=2 | 600=CGY | 604=2 | 605=F7 | 605=CGYU0 | 600=CGY | 604=2 | 605=F7 | 605=CGYM0 | 10=20";
+    ///
+    /// if let Some(fix_message) = fix::FixMessage::from_tag_value(&input) {
+    ///     println!("{:?}", fix_message.get());
+    /// }
+    /// ```
     pub fn from_tag_value(input_message: &str) -> Option<FixMessage> {
         let tag_values = FixMessage::pre_process_message(&input_message)?;
         let mut message = FixMessage::new();
@@ -155,6 +189,20 @@ impl FixMessage {
         Some(message)
     }
 
+    /// Get the root component of the internal FIX message representation.
+    ///
+    /// You can serialize such representation into json as in the example.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // this input has the non-printable character 0x01 as the separator of the fields
+    /// let input = "Recv8=FIX.4.4555=2600=CGY604=2605=F7605=CGYU0600=CGY604=2605=F7605=CGYM010=20";
+    ///
+    /// if let Some(fix_message) = fix::FixMessage::from_tag_value(&input) {
+    ///     println!("{}", serde_json::json!(fix_message.get()).to_string());
+    /// }
+    /// ```
     pub fn get(&self) -> &FixComponent {
         &self.root_component
     }
