@@ -15,6 +15,16 @@
 use serde::{ser::SerializeMap, Serialize, Serializer};
 use std::collections::{HashMap, HashSet, VecDeque};
 
+#[cfg(feature = "debugging")]
+macro_rules! debug {
+    ($($arg:tt)*) => { println!($($arg)*); }
+}
+
+#[cfg(not(feature = "debugging"))]
+macro_rules! debug {
+    ($($arg:tt)*) => { }
+}
+
 #[derive(Debug, Clone)]
 enum FixEntity {
     Field(i32, String),
@@ -217,7 +227,7 @@ impl FixMessage {
             .map(|tag_value| TagValue(tag_value.0.parse().unwrap_or(0), &tag_value.1[1..]))
             .take_while(|tag_value| {
                 if end_of_message_found {
-                    println!("WARNING: Detected tag after tag 10: {}", tag_value.0);
+                    eprintln!("WARNING: Detected tag after tag 10: {}", tag_value.0);
                     return false;
                 }
                 end_of_message_found = tag_value.0 == 10;
@@ -241,7 +251,7 @@ impl FixMessage {
                 .count();
 
         let field_separator = fix_msg[index_start..index_end].to_string();
-        println!("separator [{}]", field_separator);
+        debug!("separator [{}]", field_separator);
         if field_separator == "" {
             return None;
         }
@@ -250,14 +260,15 @@ impl FixMessage {
 
     fn check_message_is_valid(&self) -> Option<()> {
         if self.pending_tag_indices.get(&10).is_none() {
-            println!("WARNING: Message is incomplete. Discarding...");
+            eprintln!("WARNING: Message is incomplete. Discarding...");
             return None;
         }
         Some(())
     }
 
+    #[allow(unused_variables)]
     fn add_tag_value(&mut self, tag: i32, value: String, index: usize) {
-        println!(
+        debug!(
             "{}Index {} - Added {} - {}",
             self.get_spaces(),
             index,
@@ -294,7 +305,7 @@ impl FixMessage {
     }
 
     fn open_group(&mut self, group_delimiter: i32) {
-        println!("{}INFO: Group detected", self.get_spaces());
+        debug!("{}INFO: Group detected", self.get_spaces());
         let group = FixGroup::new(
             group_delimiter,
             self.get_index_of_candidate(group_delimiter),
@@ -335,7 +346,7 @@ impl FixMessage {
     }
 
     fn close_group(&mut self) {
-        println!("{}INFO: Stop parsing group\n", self.get_spaces());
+        debug!("{}INFO: Stop parsing group\n", self.get_spaces());
         let closed_group = self.active_groups.pop().unwrap();
         self.get_component()
             .entities
@@ -348,7 +359,7 @@ impl FixMessage {
     }
 
     fn increment_iteration(&mut self) {
-        println!(
+        debug!(
             "{}-- repetition {} --",
             self.get_spaces(),
             self.active_group().current_iteration + 1
@@ -366,6 +377,7 @@ impl FixMessage {
         self.active_group_mut().create_new_instance();
     }
 
+    #[allow(dead_code)]
     fn get_spaces(&self) -> String {
         " ".repeat(self.active_groups.len() * 2)
     }
