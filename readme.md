@@ -15,8 +15,7 @@ It currently supports the following input/output formats:
 
 **Output:**
 
-- FixComponent (internal representation)
-- Json
+- Json string
 
 ## Examples
 
@@ -26,7 +25,7 @@ Print internal representation:
 let input = "Recv | 8=FIX.4.4 | 555=2 | 600=CGY | 604=2 | 605=F7 | 605=CGYU0 | 600=CGY | 604=2 | 605=F7 | 605=CGYM0 | 10=209";
 
 if let Some(fix_message) = fix::FixMessage::from_tag_value(&input) {
-    println!("{:?}", fix_message.get());
+    println!("{}", fix_message.to_json());
 }
 ```
 
@@ -36,7 +35,7 @@ Print json:
 // this input has the non-printable character 0x01 as the separator of the fields
 let input = "8=FIX.4.4555=2600=CGY604=2605=F7605=CGYU0600=CGY604=2605=F7605=CGYM010=20";
 if let Some(fix_message) = fix::FixMessage::from_tag_value(&input) {
-    println!("{}", serde_json::json!(fix_message.get()).to_string());
+    println!("{}", fix_message.to_json());
 }
 ```
 
@@ -44,7 +43,7 @@ if let Some(fix_message) = fix::FixMessage::from_tag_value(&input) {
 
 ## Goodies
 
-- It supports groups and you don't need to provide the FIX dictionary
+- It supports groups and you don't need a FIX dictionary
 - You don't need to specify the separator of the input string as long as they are consistent. eg: 0x01, |, etc...
 - You don't need to "trim" the input string as the lib detects the beginning and end of the message
 

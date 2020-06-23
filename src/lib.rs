@@ -1,18 +1,8 @@
 //! `fix` is a Rust library to decode FIX (Financial Information eXchange) messages.
 //!
-//! - It supports groups and you don't need to provide the FIX dictionary
+//! - It supports groups and you don't need a FIX dictionary
 //! - You don't need to specify the separator of the input string as long as they are consistent. eg: 0x01, |, etc...
 //! - You don't need to "trim" the input string as the lib detects the beginning and end of the message
-//!
-//! Example of a FIX message with a nested group this library knows how to parse:
-//!
-//! ```ignore
-//! A, B, no_C=3, C1, C2, C1, no_D=2, D1, D2, D1, D2, C2, C1, C2
-//!         ^                   ^
-//!   start group C       start group D (in second instance of group C)
-//! ```
-//!
-//! See tests/ folder for more interesting examples
 
 use serde::{ser::SerializeMap, Serialize, Serializer};
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -39,19 +29,8 @@ impl FixEntity {
     }
 }
 
-/// This is how a FIX message is internally represented.
-///
-/// ```ignore
-/// FixMessage    := FixComponent
-/// FixComponent  := FixEntity*
-///
-/// FixEntity     := Field | Group
-///
-/// Field         := (tag: i32, value: String)
-/// Group         := FixComponent*
-/// ```
 #[derive(Debug, Clone)]
-pub struct FixComponent {
+struct FixComponent {
     entities: Vec<FixEntity>,
 }
 
@@ -138,6 +117,18 @@ impl FixGroup {
 struct TagValue<'a>(i32, &'a str);
 
 /// This is the interface you interact with.
+///
+/// The internal message is represented as follows:
+///
+/// ```ignore
+/// FixMessage    := FixComponent
+/// FixComponent  := FixEntity*
+///
+/// FixEntity     := Field | Group
+///
+/// Field         := (tag: i32, value: String)
+/// Group         := FixComponent*
+/// ```
 pub struct FixMessage {
     root_component: FixComponent,
     pending_tag_indices: HashMap<i32, VecDeque<usize>>,
@@ -165,7 +156,16 @@ impl FixMessage {
     /// let input = "Recv | 8=FIX.4.4 | 555=2 | 600=CGY | 604=2 | 605=F7 | 605=CGYU0 | 600=CGY | 604=2 | 605=F7 | 605=CGYM0 | 10=20";
     ///
     /// if let Some(fix_message) = fix::FixMessage::from_tag_value(&input) {
-    ///     println!("{:?}", fix_message.get());
+    ///     println!("{}", fix_message.to_json());
+    /// }
+    /// ```
+    ///
+    /// ```rust
+    /// // this input has the non-printable character 0x01 as the separator of the fields
+    /// let input = "Recv8=FIX.4.4555=2600=CGY604=2605=F7605=CGYU0600=CGY604=2605=F7605=CGYM010=20";
+    ///
+    /// if let Some(fix_message) = fix::FixMessage::from_tag_value(&input) {
+    ///     println!("{}", fix_message.to_json());
     /// }
     /// ```
     pub fn from_tag_value(input_message: &str) -> Option<FixMessage> {
@@ -189,22 +189,9 @@ impl FixMessage {
         Some(message)
     }
 
-    /// Get the root component of the internal FIX message representation.
-    ///
-    /// You can serialize such representation into json as in the example.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // this input has the non-printable character 0x01 as the separator of the fields
-    /// let input = "Recv8=FIX.4.4555=2600=CGY604=2605=F7605=CGYU0600=CGY604=2605=F7605=CGYM010=20";
-    ///
-    /// if let Some(fix_message) = fix::FixMessage::from_tag_value(&input) {
-    ///     println!("{}", serde_json::json!(fix_message.get()).to_string());
-    /// }
-    /// ```
-    pub fn get(&self) -> &FixComponent {
-        &self.root_component
+    /// Get a representation of the message in a json string format.
+    pub fn to_json(&self) -> String {
+        serde_json::json!(&self.root_component).to_string()
     }
 
     // from tag value encoding to a list of TagValue's
