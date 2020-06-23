@@ -1,6 +1,6 @@
 [package]
 name = "fixparser"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Juan Eugenio Abadie <juaneabadie@gmail.com>"]
 edition = "2018"
 license = "MIT"
@@ -9,7 +9,7 @@ documentation = "https://docs.rs/fixparser"
 homepage = "https://github.com/whoan/fixparser"
 repository = "https://github.com/whoan/fixparser"
 readme = "readme.md"
-keywords = ["fixprotocol", "parser"]
+keywords = ["fixprotocol", "parser", "json"]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
