@@ -1,4 +1,4 @@
-//! `fix` is a Rust library to decode FIX (Financial Information eXchange) messages.
+//! `fixparser` is a Rust library to decode FIX (Financial Information eXchange) messages.
 //!
 //! - It supports groups and you don't need a FIX dictionary
 //! - You don't need to specify the separator of the input string as long as they are consistent. eg: 0x01, |, etc...
@@ -163,7 +163,7 @@ impl FixMessage {
     /// ```rust
     /// let input = "Recv | 8=FIX.4.4 | 555=2 | 600=CGY | 604=2 | 605=F7 | 605=CGYU0 | 600=CGY | 604=2 | 605=F7 | 605=CGYM0 | 10=20";
     ///
-    /// if let Some(fix_message) = fix::FixMessage::from_tag_value(&input) {
+    /// if let Some(fix_message) = fixparser::FixMessage::from_tag_value(&input) {
     ///     println!("{}", fix_message.to_json());
     /// }
     /// ```
@@ -172,7 +172,7 @@ impl FixMessage {
     /// // this input has the non-printable character 0x01 as the separator of the fields
     /// let input = "Recv8=FIX.4.4555=2600=CGY604=2605=F7605=CGYU0600=CGY604=2605=F7605=CGYM010=20";
     ///
-    /// if let Some(fix_message) = fix::FixMessage::from_tag_value(&input) {
+    /// if let Some(fix_message) = fixparser::FixMessage::from_tag_value(&input) {
     ///     println!("{}", fix_message.to_json());
     /// }
     /// ```
@@ -197,7 +197,7 @@ impl FixMessage {
         Some(message)
     }
 
-    /// Get a representation of the message in a json string format.
+    /// Get a representation of the message in json string format.
     pub fn to_json(&self) -> String {
         serde_json::json!(&self.root_component).to_string()
     }

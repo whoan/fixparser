@@ -1,10 +1,10 @@
-# fix
+# fixparser
 
-Decode FIX messages without a FIX dictionary.
+Parse FIX messages without a FIX dictionary.
 
 ```
 [dependencies]
-fix = "0.1.0"
+fixparser = "0.1.0"
 ```
 
 It currently supports the following input/output formats:
@@ -24,7 +24,7 @@ Print internal representation:
 ```rust
 let input = "Recv | 8=FIX.4.4 | 555=2 | 600=CGY | 604=2 | 605=F7 | 605=CGYU0 | 600=CGY | 604=2 | 605=F7 | 605=CGYM0 | 10=209";
 
-if let Some(fix_message) = fix::FixMessage::from_tag_value(&input) {
+if let Some(fix_message) = fixparser::FixMessage::from_tag_value(&input) {
     println!("{}", fix_message.to_json());
 }
 ```
@@ -34,7 +34,7 @@ Print json:
 ```rust
 // this input has the non-printable character 0x01 as the separator of the fields
 let input = "8=FIX.4.4555=2600=CGY604=2605=F7605=CGYU0600=CGY604=2605=F7605=CGYM010=20";
-if let Some(fix_message) = fix::FixMessage::from_tag_value(&input) {
+if let Some(fix_message) = fixparser::FixMessage::from_tag_value(&input) {
     println!("{}", fix_message.to_json());
 }
 ```
@@ -59,4 +59,4 @@ if let Some(fix_message) = fix::FixMessage::from_tag_value(&input) {
 
 ## License
 
-[MIT](https://github.com/whoan/libfix/blob/master/LICENSE)
+[MIT](https://github.com/whoan/fixparser/blob/master/LICENSE)
