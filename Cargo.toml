@@ -3,6 +3,12 @@ name = "fix"
 version = "0.1.0"
 authors = ["Juan Eugenio Abadie <juaneabadie@gmail.com>"]
 edition = "2018"
+license = "MIT"
+description = "A Rust library to decode FIX messages."
+homepage = "https://github.com/whoan/libfix"
+repository = "https://github.com/whoan/libfix"
+readme = "readme.md"
+keywords = ["fixprotocol"]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
