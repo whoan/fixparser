@@ -3,6 +3,14 @@
 //! - It supports groups and you don't need a FIX dictionary
 //! - You don't need to specify the separator of the input string as long as they are consistent. eg: 0x01, |, etc...
 //! - You don't need to "trim" the input string as the lib detects the beginning and end of the message
+//!
+//! Currently supported input:
+//!
+//! - [FIX Tag=Value (classic FIX)](https://www.fixtrading.org/standards/tagvalue/)
+//!
+//! Currently supported output:
+//!
+//! - Json string
 
 use serde::{ser::SerializeMap, Serialize, Serializer};
 use std::collections::{HashMap, HashSet, VecDeque};
