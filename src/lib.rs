@@ -15,11 +15,11 @@ impl FixEntity {
         }
     }
 
-    fn get_value_i32(&self) -> i32 {
+    fn get_field_value_i32(&self) -> i32 {
         if let FixEntity::Field(_dummy, value) = self {
             return value.parse().unwrap();
         }
-        panic!("ill-formated FIX");
+        panic!("A Field was expected");
     }
 }
 
@@ -68,12 +68,12 @@ impl FixGroup {
     fn new(delimiter: i32, index_first_delimiter: usize, component: &mut FixComponent) -> Self {
         let group_instance =
             FixComponent::new(component.entities.drain(index_first_delimiter..).collect());
-        let group = component.entities.pop().unwrap();
+        let no_tag_field = component.entities.pop().unwrap();
 
         Self {
-            no_tag: group.get_tag(), // bad variable name, as in FIX
+            no_tag: no_tag_field.get_tag(), // bad variable name, as in FIX
             delimiter,
-            repetitions: group.get_value_i32(),
+            repetitions: no_tag_field.get_field_value_i32(),
             current_iteration: 1,
             known_tags: Self::get_known_tags(&group_instance),
             instances: vec![group_instance],
