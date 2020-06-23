@@ -1,5 +1,8 @@
 # fixparser
 
+[![Crates.io](https://img.shields.io/crates/v/fixparser.svg)](https://crates.io/crates/fixparser)
+[![Docs.rs](https://docs.rs/fixparser/badge.svg)](https://docs.rs/fixparser)
+
 Parse FIX messages without a FIX dictionary.
 
 ```

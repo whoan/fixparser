@@ -5,6 +5,7 @@ authors = ["Juan Eugenio Abadie <juaneabadie@gmail.com>"]
 edition = "2018"
 license = "MIT"
 description = "A Rust library to parse FIX messages."
+documentation = "https://docs.rs/fixparser"
 homepage = "https://github.com/whoan/fixparser"
 repository = "https://github.com/whoan/fixparser"
 readme = "readme.md"
