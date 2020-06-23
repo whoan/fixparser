@@ -48,12 +48,20 @@ if let Some(fix_message) = fixparser::FixMessage::from_tag_value(&input) {
 
 ## Limitations
 
-- There are a few scenarios the library can't parse as it can't guess the format of the message without a dictionary:
+- There are a few scenarios the library might parse incorrectly as it can't guess the format of the message without a dictionary:
 
 ```
 8=FIX.4.4 | 1000=2 | 1001=1 | 1002=2 | 1001=10 | 1002=20 | 1003=30 | 10=209
               ^                                              ^
           group 1000                does 1003 belong to the second repetition of group 1000?
+```
+
+## Features
+
+You can debug the library using the `debugging` feature:
+
+```
+fixparser = { version = "<version>", features = ["debugging"] }
 ```
 
 ## License
