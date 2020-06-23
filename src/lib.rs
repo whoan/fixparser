@@ -10,7 +10,7 @@
 //!
 //! Currently supported output:
 //!
-//! - Json string
+//! - Json (serde_json::value::Value)
 
 use serde::{ser::SerializeMap, Serialize, Serializer};
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -198,8 +198,8 @@ impl FixMessage {
     }
 
     /// Get a representation of the message in json string format.
-    pub fn to_json(&self) -> String {
-        serde_json::json!(&self.root_component).to_string()
+    pub fn to_json(&self) -> serde_json::value::Value {
+        serde_json::json!(&self.root_component)
     }
 
     // from tag value encoding to a list of TagValue's

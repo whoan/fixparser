@@ -18,7 +18,7 @@ It currently supports the following input/output formats:
 
 **Output:**
 
-- Json string
+- Json (serde_json::value::Value)
 
 ## Examples
 
