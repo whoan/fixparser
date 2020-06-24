@@ -22,7 +22,7 @@ macro_rules! debug {
 
 #[cfg(not(feature = "debugging"))]
 macro_rules! debug {
-    ($($arg:tt)*) => { }
+    ($($arg:tt)*) => {};
 }
 
 #[derive(Debug, Clone)]
@@ -233,7 +233,7 @@ impl FixMessage {
                 end_of_message_found = tag_value.0 == 10;
                 true
             })
-            .map(|tag_value| Some(tag_value))
+            .map(Some)
             .collect()
     }
 
