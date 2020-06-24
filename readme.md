@@ -23,7 +23,7 @@ It currently supports the following input/output formats:
 ## Examples
 
 ```rust
-let input = "Recv | 8=FIX.4.4 | 555=2 | 600=CGY | 604=2 | 605=F7 | 605=CGYU0 | 600=CGY | 604=2 | 605=F7 | 605=CGYM0 | 10=209";
+let input = "Recv | 8=FIX.4.4 | 555=2 | 600=CGY | 604=2 | 605=F7 | 605=CGYU0 | 600=CGY | 10=209";
 
 if let Some(fix_message) = fixparser::FixMessage::from_tag_value(&input) {
     println!("{}", fix_message.to_json());
@@ -32,9 +32,40 @@ if let Some(fix_message) = fixparser::FixMessage::from_tag_value(&input) {
 
 ```rust
 // this input has the non-printable character 0x01 as the separator of the fields
-let input = "8=FIX.4.4555=2600=CGY604=2605=F7605=CGYU0600=CGY604=2605=F7605=CGYM010=20";
+let input = "8=FIX.4.4555=2600=CGY604=2605=F7605=CGYU0600=CGY10=20";
 if let Some(fix_message) = fixparser::FixMessage::from_tag_value(&input) {
     println!("{}", fix_message.to_json());
+}
+```
+
+For any of those examples you will have this output:
+
+```
+{"8":"FIX.4.4","555":[{"600":"CGY","604":[{"605":"F7"},{"605":"CGYU0"}]},{"600":"CGY"}],"10":"209"}
+```
+
+Or prettier (`jq`'ed):
+
+```
+{
+  "8": "FIX.4.4",
+  "555": [
+    {
+      "600": "CGY",
+      "604": [
+        {
+          "605": "F7"
+        },
+        {
+          "605": "CGYU0"
+        }
+      ]
+    },
+    {
+      "600": "CGY"
+    }
+  ],
+  "10": "20"
 }
 ```
 
@@ -48,13 +79,15 @@ if let Some(fix_message) = fixparser::FixMessage::from_tag_value(&input) {
 
 ## Limitations
 
-- There are a few scenarios the library might parse incorrectly as it can't guess the format of the message without a dictionary:
+- There is scenario the library might parse the message incorrectly as it can't guess the format of the message without a dictionary:
 
 ```
 8=FIX.4.4 | 1000=2 | 1001=1 | 1002=2 | 1001=10 | 1002=20 | 1003=30 | 10=209
               ^                                              ^
           group 1000                does 1003 belong to the second repetition of group 1000?
 ```
+
+In such scenario, it will assume *1003* does not belong to the group.
 
 ## Features
 
