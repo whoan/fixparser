@@ -1,5 +1,6 @@
 # fixparser
 
+![](https://github.com/whoan/fixparser/workflows/build-and-test/badge.svg)
 [![Crates.io](https://img.shields.io/crates/v/fixparser.svg)](https://crates.io/crates/fixparser)
 [![Docs.rs](https://docs.rs/fixparser/badge.svg)](https://docs.rs/fixparser)
 
