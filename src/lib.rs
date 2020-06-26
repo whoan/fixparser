@@ -204,7 +204,7 @@ impl FixMessage {
     ///
     /// ```rust
     /// // this input has the non-printable character 0x01 as the separator of the fields
-    /// let input = "8=FIX.4.4555=2600=CGY604=2605=F7605=CGYU0600=CGY10=20";
+    /// let input = "8=FIX.4.4555=2600=CGY604=2605=F7605=CGYU0600=CGY10=209";
     ///
     /// if let Some(fix_message) = fixparser::FixMessage::from_tag_value(&input) {
     ///     println!("{}", fix_message.to_json());
