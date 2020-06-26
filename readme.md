@@ -70,6 +70,12 @@ Or prettier (`jq`'ed):
 }
 ```
 
+Give it a try:
+
+```bash
+cargo run --example from-stdin
+```
+
 ## Goodies
 
 - It supports groups and you don't need a FIX dictionary
