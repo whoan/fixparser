@@ -220,6 +220,9 @@ impl FixMessage {
 
     // from tag value encoding to a list of TagValue's
     fn pre_process_message<'a>(input_message: &'a str) -> Option<Vec<TagValue<'a>>> {
+        if input_message.len() < 16 { // len(8=FIX.N.M|10=123) = 16
+            return None
+        }
         let start_offset = input_message.find("8=")?;
         let field_separator = Self::get_separator(&input_message[start_offset..])?;
         let mut end_of_message_found = false;
