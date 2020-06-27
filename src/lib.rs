@@ -282,7 +282,11 @@ impl FixMessage {
 
     fn check_message_is_valid(&self) -> Option<()> {
         if self.pending_tag_indices.get(&10).is_none() {
-            eprintln!("WARNING: Message is incomplete. Discarding...");
+            eprintln!("WARNING: Message is incomplete");
+            return None;
+        }
+        if self.pending_tag_indices.get(&0).is_some() {
+            eprintln!("WARNING: A tag has something different than a number");
             return None;
         }
         Some(())
