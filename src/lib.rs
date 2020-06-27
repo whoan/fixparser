@@ -12,6 +12,8 @@
 //!
 //! - Json (serde_json::value::Value)
 
+extern crate regex;
+
 use serde::{ser::SerializeMap, Serialize, Serializer};
 use std::collections::{HashMap, HashSet, VecDeque};
 
@@ -248,23 +250,18 @@ impl FixMessage {
 
     // get FIX values separator: eg: 0x01 or |
     fn get_separator(fix_msg: &str) -> Option<String> {
-        let mut index_start: usize = 9; // len(8=FIX.N.M)
-        if fix_msg.chars().nth(index_start).unwrap() == '.' {
-            index_start += 4; // len(.SPX)
-        }
+        let fix_version_re = regex::Regex::new(r"^8=FIXT?.\d{1}.\d{1}").unwrap();
+        let field_separator = &fix_msg[fix_version_re.shortest_match(fix_msg)?..]
+            .chars()
+            .take_while(|char| !char.is_digit(10))
+            .collect::<String>();
 
-        let index_end = index_start
-            + fix_msg[index_start..]
-                .chars()
-                .take_while(|char| !char.is_digit(10))
-                .count();
-
-        let field_separator = fix_msg[index_start..index_end].to_string();
         debug!("separator [{}]", field_separator);
         if field_separator == "" {
             return None;
         }
-        Some(field_separator)
+
+        Some(field_separator.to_string())
     }
 
     fn check_message_is_valid(&self) -> Option<()> {
