@@ -433,6 +433,10 @@ impl FixMessage {
     }
 
     fn tag_in_group(&mut self, tag: i32) -> bool {
+        if tag == 10 {
+            eprintln!("WARNING: End of message detected while parsing group");
+            return false;
+        }
         // from cheaper to more expensive check
         !self.is_last_iteration()
             || self.is_known_group_tag(tag)

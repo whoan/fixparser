@@ -71,6 +71,14 @@ fn soh_separator() {
     assert_eq!(output, FixMessage::from_tag_value(&input).unwrap().to_json().to_string());
 }
 
+#[test]
+fn missinig_repeating_group() {
+    // the lib should generate an output although there is a missing repetition
+    let input = "8=FIX.4.4 | 555=3 | 600=QWE | 600=RTY | 10=209";
+    let output = r#"{"8":"FIX.4.4","555":[{"600":"QWE"},{"600":"RTY"}],"10":"209"}"#;
+    assert_eq!(output, FixMessage::from_tag_value(&input).unwrap().to_json().to_string());
+}
+
 // invalid cases from here
 
 #[test]
