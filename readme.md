@@ -21,6 +21,10 @@ It currently supports the following input/output formats:
 
 - Json (`serde_json::value::Value`)
 
+## Goal
+
+To have a low-level mechanism to convert FIX messages to something easier to consume by higher-level tools. In such tools, you can combine the output of this library (json) with a FIX dictionary and let your dreams come true :nerd_face:.
+
 ## Examples
 
 ```rust
@@ -78,21 +82,12 @@ cargo run --example from-stdin
 
 ## Goodies
 
-- It supports groups and you don't need a FIX dictionary
+- It supports repeating groups
+- You don't need a FIX dictionary. It is easy to create a tool to combine the output (json) with a dictionary
 - You don't need to specify the separator of the input string as long as they are consistent. eg: 0x01, |, etc...
 - You don't need to "trim" the input string as the lib detects the beginning and end of the message
-
-## Limitations
-
-- There is scenario the library might parse the message incorrectly as it can't guess the format of the message without a dictionary:
-
-```
-8=FIX.4.4 | 1000=2 | 1001=1 | 1002=2 | 1001=10 | 1002=20 | 1003=30 | 10=209
-              ^                                              ^
-          group 1000                does 1003 belong to the second repetition of group 1000?
-```
-
-In such scenario, it will assume *1003* does not belong to the group.
+- You don't need a delimiter (eg: SOH) in the last field
+- It makes minimal validations on the message to allow parsing FIX messages with wrong values
 
 ## Features
 
@@ -101,6 +96,23 @@ You can debug the library using the `debugging` feature:
 ```
 fixparser = { version = "<version>", features = ["debugging"] }
 ```
+
+## Nive-to-have features
+
+- Support [data fields](https://www.onixs.biz/fix-dictionary/5.0.SP2/index.html): data, and XMLData
+- Support more [input encodings](https://www.fixtrading.org/standards/)
+
+## Limitations
+
+- There is a scenario where the library needs to make assumptions as it can't guess the format without a dictionary. Example:
+
+```
+8=FIX.4.4 | 1000=2 | 1001=1 | 1002=2 | 1001=10 | 1002=20 | 1003=30 | 10=209
+              ^                                              ^
+          group 1000                does 1003 belong to the second repetition of group 1000?
+```
+
+In such a scenario, it will assume *1003* does NOT belong to the group. Doing so, it's easier to fix it with the help of other tools which use FIX dictionaries (coming soon? let's see).
 
 ## License
 
