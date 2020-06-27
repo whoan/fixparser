@@ -222,20 +222,36 @@ impl FixMessage {
 
     // from tag value encoding to a list of TagValue's
     fn pre_process_message<'a>(input_message: &'a str) -> Option<Vec<TagValue<'a>>> {
-        if input_message.len() < 16 { // len(8=FIX.N.M|10=123) = 16
-            return None
+        const SHORTEST_MESSAGE_LENGTH: usize = 16; // len(8=FIX.N.M|10=123)
+        // trim input
+        let input_message = &input_message[input_message.find("8=")?..];
+        if input_message.len() < SHORTEST_MESSAGE_LENGTH {
+            return None;
         }
-        let start_offset = input_message.find("8=")?;
-        let field_separator = Self::get_separator(&input_message[start_offset..])?;
-        let mut end_of_message_found = false;
 
-        input_message[start_offset..]
-            .split(&field_separator)
+        let mut end_of_message_found = false;
+        input_message
+            .split(&Self::get_separator(input_message)?)
             .map(|tag_value| {
                 tag_value.split_at(tag_value.find('=').unwrap_or_else(|| tag_value.len()))
             })
-            .filter(|tag_value| tag_value.1.len() > 1)
-            .map(|tag_value| TagValue(tag_value.0.parse().unwrap_or(0), &tag_value.1[1..]))
+            .take_while(|tag_value| {
+                // tag_value.1 == "=something"
+                let there_is_value = tag_value.1.len() > 1;
+                if !there_is_value {
+                    eprintln!("WARNING: Wrong field: [{}] [{}]", tag_value.0, tag_value.1);
+                }
+                there_is_value
+            })
+            .map(|tag_value| {
+                let tag = tag_value.0.parse().unwrap_or(0);
+                let value = &tag_value.1[1..];
+                if tag == 10 && value.len() > 3 {
+                    debug!("Ignoring characters after checksum [{}]", &value[3..]);
+                    return TagValue(tag, &value[0..3]);
+                }
+                TagValue(tag, value)
+            })
             .take_while(|tag_value| {
                 if end_of_message_found {
                     eprintln!("WARNING: Detected tag after tag 10: {}", tag_value.0);
