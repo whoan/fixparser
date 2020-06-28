@@ -14,6 +14,15 @@
 
 use serde::{ser::SerializeMap, Serialize, Serializer};
 use std::collections::{HashMap, HashSet, VecDeque};
+use wasm_bindgen::prelude::*;
+
+#[wasm_bindgen]
+pub fn from_tag_value_to_json(input_message: &str) -> String {
+    match FixMessage::from_tag_value(input_message) {
+      Some(fix_message) => fix_message.to_json().to_string(),
+      None => String::from(r#"{"error": "Could not parse the given input. Is it a valid FIX message?"}"#)
+    }
+}
 
 #[cfg(feature = "debugging")]
 macro_rules! debug {
