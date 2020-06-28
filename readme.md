@@ -8,7 +8,7 @@ Parse FIX messages without a FIX dictionary.
 
 ```
 [dependencies]
-fixparser = "0.1.3"
+fixparser = "0.1.4"
 ```
 
 It currently supports the following input/output formats:
