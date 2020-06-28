@@ -33,7 +33,7 @@ println!("{}", fixparser::FixMessage::from_tag_value(&input).unwrap().to_json())
 ```
 
 ```rust
-// this input has the non-printable character 0x01 as the separator of the fields
+// this input has the non-printable SOH character (0x01) as the separator of the fields
 let input = "8=FIX.4.4555=2600=CGY604=2605=F7605=CGYU0600=CGY10=209";
 println!("{}", fixparser::FixMessage::from_tag_value(&input).unwrap().to_json());
 ```
@@ -80,7 +80,7 @@ cargo run --example from-stdin
 - It supports repeating groups
 - You don't need a FIX dictionary. It is easy to create a tool to combine the output (json) with a dictionary
 - You don't need to specify the separator of the input string as long as they are consistent. eg: 0x01, |, etc...
-- You don't need to "trim" the input string as the lib detects the beginning and end of the message
+- You don't need to trim the input string as the lib detects the beginning and end of the message
 - You don't need a delimiter (eg: SOH) in the last field
 - It makes minimal validations on the message to allow parsing FIX messages with wrong values
 
