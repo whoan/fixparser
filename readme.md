@@ -8,7 +8,7 @@ Parse FIX messages without a FIX dictionary universally thanks to Rust + WASM.
 
 ```
 [dependencies]
-fixparser = "0.1.4"
+fixparser = "0.1.5"
 ```
 
 It currently supports the following input/output formats:
