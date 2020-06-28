@@ -190,7 +190,7 @@ impl FixMessage {
                 .or_insert_with(VecDeque::new)
                 .push_back(index);
         }
-        message.check_message_is_valid()?;
+        message.check_message_is_valid();
 
         for (index, tag_value) in tag_values.iter().enumerate() {
             message.add_tag_value(tag_value.0, String::from(tag_value.1), index);
@@ -222,7 +222,7 @@ impl FixMessage {
 
     // from tag value encoding to a list of TagValue's
     fn pre_process_message<'a>(input_message: &'a str) -> Option<Vec<TagValue<'a>>> {
-        const SHORTEST_MESSAGE_LENGTH: usize = 16; // len(8=FIX.N.M|10=123)
+        const SHORTEST_MESSAGE_LENGTH: usize = 12; // len(8=FIX.N.M|X=) -> invalid still parsable
         // trim input
         let input_message = &input_message[input_message.find("8=")?..];
         if input_message.len() < SHORTEST_MESSAGE_LENGTH {
@@ -235,20 +235,23 @@ impl FixMessage {
             .map(|tag_value| {
                 tag_value.split_at(tag_value.find('=').unwrap_or_else(|| tag_value.len()))
             })
-            .take_while(|tag_value| {
-                // tag_value.1 == "=something"
-                let there_is_value = tag_value.1.len() > 1;
-                if !there_is_value {
-                    eprintln!("WARNING: Wrong field: [{}] [{}]", tag_value.0, tag_value.1);
+            .inspect(|tag_value| {
+                if tag_value.1.is_empty() {
+                    eprintln!("WARNING: Ignoring [{}]", tag_value.0);
+                } else if tag_value.1.len() == 1 {
+                    eprintln!("WARNING: Tag {} has no value", tag_value.0);
                 }
-                there_is_value
             })
+            .filter(|tag_value| !tag_value.1.is_empty())
             .map(|tag_value| {
                 let tag = tag_value.0.parse().unwrap_or(0);
                 let value = &tag_value.1[1..];
                 if tag == 10 && value.len() > 3 {
                     debug!("Ignoring characters after checksum [{}]", &value[3..]);
                     return TagValue(tag, &value[0..3]);
+                }
+                if tag == 0 {
+                    eprintln!("WARNING: Ignoring [{}={}]", tag_value.0, value);
                 }
                 TagValue(tag, value)
             })
@@ -260,6 +263,7 @@ impl FixMessage {
                 end_of_message_found = tag_value.0 == 10;
                 true
             })
+            .filter(|tag_value| tag_value.0 != 0)
             .map(Some)
             .collect()
     }
@@ -272,30 +276,22 @@ impl FixMessage {
             .take_while(|char| !char.is_digit(10))
             .collect::<String>();
 
-        debug!("separator [{}]", field_separator);
         if field_separator == "" {
             return None;
         }
-
         Some(field_separator.to_string())
     }
 
-    fn check_message_is_valid(&self) -> Option<()> {
+    fn check_message_is_valid(&self) {
         if self.pending_tag_indices.get(&10).is_none() {
-            eprintln!("WARNING: Message is incomplete");
-            return None;
+            eprintln!("WARNING: Message is incomplete (missing tag 10)");
         }
-        if self.pending_tag_indices.get(&0).is_some() {
-            eprintln!("WARNING: A tag has something different than a number");
-            return None;
-        }
-        Some(())
     }
 
     #[allow(unused_variables)]
     fn add_tag_value(&mut self, tag: i32, value: String, index: usize) {
         debug!(
-            "{}Index {} - Added {} - {}",
+            "{}Index {} - Add {} - {}",
             self.get_spaces(),
             index,
             tag,
