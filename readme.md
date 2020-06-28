@@ -29,18 +29,13 @@ To have a low-level mechanism to convert FIX messages to something easier to con
 
 ```rust
 let input = "Recv | 8=FIX.4.4 | 555=2 | 600=CGY | 604=2 | 605=F7 | 605=CGYU0 | 600=CGY | 10=209";
-
-if let Some(fix_message) = fixparser::FixMessage::from_tag_value(&input) {
-    println!("{}", fix_message.to_json());
-}
+println!("{}", fixparser::FixMessage::from_tag_value(&input).unwrap().to_json());
 ```
 
 ```rust
 // this input has the non-printable character 0x01 as the separator of the fields
 let input = "8=FIX.4.4555=2600=CGY604=2605=F7605=CGYU0600=CGY10=209";
-if let Some(fix_message) = fixparser::FixMessage::from_tag_value(&input) {
-    println!("{}", fix_message.to_json());
-}
+println!("{}", fixparser::FixMessage::from_tag_value(&input).unwrap().to_json());
 ```
 
 For any of those examples you will have this output:
