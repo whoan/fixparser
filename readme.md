@@ -4,7 +4,7 @@
 [![Crates.io](https://img.shields.io/crates/v/fixparser.svg)](https://crates.io/crates/fixparser)
 [![Docs.rs](https://docs.rs/fixparser/badge.svg)](https://docs.rs/fixparser)
 
-Parse FIX messages without a FIX dictionary.
+Parse FIX messages without a FIX dictionary universally thanks to Rust + WASM.
 
 ```
 [dependencies]
@@ -21,11 +21,15 @@ It currently supports the following input/output formats:
 
 - Json (`serde_json::value::Value`)
 
+> **In WASM, the output is a JSON string.**
+
 ## Goal
 
-To have a low-level mechanism to convert FIX messages to something easier to consume by higher-level tools. In such tools, you can combine the output of this library (json) with a FIX dictionary and let your dreams come true :nerd_face:.
+To have a universal low-level mechanism to convert FIX messages to something easier to consume by higher-level tools. In such tools, you can combine the output of this library (json) with a FIX dictionary and let your dreams come true :nerd_face:.
 
 ## Examples
+
+### Rust
 
 ```rust
 let input = "Recv | 8=FIX.4.4 | 555=2 | 600=CGY | 604=2 | 605=F7 | 605=CGYU0 | 600=CGY | 10=209";
@@ -75,6 +79,17 @@ Give it a try:
 cargo run --example from-stdin
 ```
 
+### WASM / JS
+
+```bash
+yarn add @whoan/fixparser
+```
+
+```js
+const js = import('@whoan/fixparser')
+js.then(fixparser => console.log(fixparser.from_tag_value_to_json('8=FIX.4.4 | 10=909')))
+```
+
 ## Goodies
 
 - It supports repeating groups
@@ -83,6 +98,7 @@ cargo run --example from-stdin
 - You don't need to trim the input string as the lib detects the beginning and end of the message
 - You don't need a delimiter (eg: SOH) in the last field
 - It makes minimal validations on the message to allow parsing FIX messages with wrong values
+- It has WASM bindings to use the library universally (eg: with [wasmer](https://wasmer.io))
 
 ## Features
 
