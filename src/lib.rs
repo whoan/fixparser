@@ -12,8 +12,6 @@
 //!
 //! - Json (serde_json::value::Value)
 
-extern crate regex;
-
 use serde::{ser::SerializeMap, Serialize, Serializer};
 use std::collections::{HashMap, HashSet, VecDeque};
 
