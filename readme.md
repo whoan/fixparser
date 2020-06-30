@@ -89,6 +89,9 @@ yarn add @whoan/fixparser
 const js = import('@whoan/fixparser')
 js.then(fixparser => console.log(fixparser.from_tag_value_to_json('8=FIX.4.4 | 10=909')))
 ```
+```
+{"8":"FIX.4.4","10":"909"}
+```
 
 ## Goodies
 

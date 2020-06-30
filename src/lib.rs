@@ -177,7 +177,7 @@ impl FixMessage {
 
     /// Creates a FixMessage from an input string encoded in [FIX Tag=Value (classic FIX)](https://www.fixtrading.org/standards/tagvalue/).
     ///
-    /// # Examples
+    /// # Example
     ///
     /// ```rust
     /// let input = "Recv | 8=FIX.4.4 | 555=2 | 600=CGY | 604=2 | 605=F7 | 605=CGYU0 | 600=CGY | 10=209";
@@ -206,7 +206,7 @@ impl FixMessage {
 
     /// Get a representation of the message in json string format.
     ///
-    /// # Examples
+    /// # Example
     ///
     /// ```rust
     /// // this input has the non-printable character 0x01 as the separator of the fields
