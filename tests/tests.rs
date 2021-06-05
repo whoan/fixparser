@@ -9,8 +9,15 @@ fn minimal_length() {
 
 #[test]
 fn prefixed() {
-    let input = "Recv | 8=FIX.4.4|10=209";
-    let output = r#"{"8":"FIX.4.4","10":"209"}"#;
+    let input = "Recv | 8=FIX.4.4 | 9=something | 10=209";
+    let output = r#"{"8":"FIX.4.4","9":"something","10":"209"}"#;
+    assert_eq!(output, FixMessage::from_tag_value(&input).unwrap().to_json().to_string());
+}
+
+#[test]
+fn control_a_separator() {
+    let input = "8=FIX.4.4^A9=something^A10=209";
+    let output = r#"{"8":"FIX.4.4","9":"something","10":"209"}"#;
     assert_eq!(output, FixMessage::from_tag_value(&input).unwrap().to_json().to_string());
 }
 
